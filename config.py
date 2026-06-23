@@ -47,7 +47,9 @@ class Config:
     modes: dict[str, bool] = field(default_factory=dict)
     coverage_gate: dict[str, int] = field(default_factory=dict)
     landmark_categories: dict[str, list] = field(default_factory=dict)
-    min_polygon_area_m2: float = 3000
+    landmark_large_only: list = field(default_factory=list)
+    min_major_area_m2: float = 40000
+    number_bucket_step: int = 1000
 
     mvp_enabled: bool = True
     mvp_barrio: str = "CHACARITA"
@@ -93,7 +95,10 @@ class Config:
         c.coverage_gate = raw.get("coverage_gate", {})
         lm = raw.get("landmarks", {})
         c.landmark_categories = lm.get("categories", {})
-        c.min_polygon_area_m2 = lm.get("min_polygon_area_m2", c.min_polygon_area_m2)
+        c.landmark_large_only = lm.get("large_only", [])
+        c.min_major_area_m2 = lm.get("min_major_area_m2", c.min_major_area_m2)
+        c.number_bucket_step = raw.get("street_index", {}).get(
+            "number_bucket_step", c.number_bucket_step)
 
         mvp = raw.get("mvp", {})
         c.mvp_enabled = mvp.get("enabled", c.mvp_enabled)

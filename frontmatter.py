@@ -93,11 +93,11 @@ def overview():
 
 def street_index_pdf():
     data = json.loads((CFG.output_dir / "street_index.json").read_text(encoding="utf-8"))
-    rows = "".join(
-        f"<div class='entry'><span class='name'>{escape(e['name'])}</span> "
-        f"<span class='refs'>{', '.join(e['refs'])}</span></div>"
-        for e in data["entries"]
-    )
+    def row(e):
+        rng = f" <span class='muted'>{e['range']}</span>" if e.get("range") else ""
+        return (f"<div class='entry'><span class='name'>{escape(e['name'])}</span>{rng} "
+                f"<span class='refs'>{', '.join(e['refs'])}</span></div>")
+    rows = "".join(row(e) for e in data["entries"])
     body = f"<h2>Índice de calles</h2><div class='cols'>{rows}</div>"
     return _render(body, "street_index.pdf")
 

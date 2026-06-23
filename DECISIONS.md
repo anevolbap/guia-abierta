@@ -11,11 +11,13 @@ Full pipeline runs end to end and produces a real printable A5 PDF. Verified on
 
 MVP run results:
 - 4 map pages, 140 sub-grid cells (2x2 page grid over Palermo).
-- 383 streets indexed.
-- 138 landmarks (134 OSM POIs + subte stations).
+- Maps draw street names (avenidas emphasised) and major landmarks.
+- 658 street index entries (457 split by house-number range).
+- 62 landmarks (hospitals + major: parks, stations, universities, civic,
+  stadium), down from 138 before the reduction.
 - 72 colectivo lines and subte B/D/H crossing the booklet area; 107 cells with
   transit service.
-- Final `output/guiat.pdf`: 21 pages, page size 148 x 210 mm (A5) confirmed.
+- Final `output/guiat.pdf`: 24 pages, page size 148 x 210 mm (A5) confirmed.
 
 Round-trip check (the MVP acceptance test) passes: a landmark resolves to a
 cell, and the cell resolves back to the right lines. Examples:
@@ -103,6 +105,35 @@ These were the open questions in `PLAN.md`. Answers from the live downloads:
 9. **Landmark and OSM fetch degrade gracefully.** If Overpass is unreachable,
    `build_landmarks` warns and continues with just subte stations, so a run
    still completes.
+
+## Map labels and index detail (added after first pass)
+
+10. **Street names on the maps.** Each street gets one rotated label per page,
+    placed at the midpoint of its longest on-page run, angled to the street.
+    Avenidas (`tipo_c == AVENIDA`) are always labelled, in blue bold; other
+    streets are labelled only when their on-page run is longer than
+    `_MIN_LABEL_LEN_M` (170 m) to keep clutter down. Near-duplicate placements
+    within 60 m are skipped. Label text uses `nom_mapa` (e.g. "AV. SANTA FE").
+    This is deliberately simple (no global collision solver); QGIS Atlas in
+    Phase 2 is the real fix.
+
+11. **Landmarks reduced to hospitals + major.** Categories are now hospital,
+    parque, estadio, cementerio, estacion (train), universidad, civico. Small
+    plazas and gardens are dropped. Parks and cemeteries are kept only above
+    `min_major_area_m2` (40000 m^2) so we get Bosques de Palermo, not every
+    named square. Hospitals and other point landmarks pass regardless of size.
+    On the map, one marker per name per page (repeated OSM features like
+    university campuses do not stack). Parks/cemeteries draw as area fills.
+
+12. **Street index split by house-number range.** The callejero is per-block
+    with `alt_izqini/izqfin/derini/derfin` house-number fields. Each segment is
+    bucketed by its lowest real number into `number_bucket_step` (1000) bins. A
+    street spanning more than one bucket gets one entry per bucket
+    ("CORDOBA AV. 1000-2000", "CORDOBA AV. 2000-3000", ...); a street inside one
+    bucket, or with no numbering (highways), stays a single rangeless entry.
+    Watch-out fixed during build: unnumbered segments yield a pandas `NaN`, and
+    `NaN is None` is false, so `_bucket` must treat NaN as unnumbered or every
+    segment becomes its own `(nan, nan)` bucket and the index explodes.
 
 ## Module map
 

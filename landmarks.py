@@ -50,11 +50,22 @@ def fetch_osm_landmarks() -> gpd.GeoDataFrame:
     if "name" not in feats.columns:
         feats["name"] = None
     feats = feats[feats["name"].notna()].copy()
-    keep = ["name", "category", "geometry"]
-    feats = feats[keep]
+    feats = feats[["name", "category", "geometry"]]
+    feats = _drop_small(feats)
     feats.to_file(cache, driver="GPKG")
     print(f"[landmarks] OSM features cached: {len(feats)} -> {cache.name}")
     return feats
+
+
+def _drop_small(feats: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Keep large_only categories (parks/cemeteries) only above the area
+    threshold; everything else passes regardless of size."""
+    if feats.empty or not CFG.landmark_large_only:
+        return feats
+    area_m2 = feats.to_crs(CFG.crs_work).geometry.area
+    big = feats["category"].isin(CFG.landmark_large_only)
+    drop = big & (area_m2.values < CFG.min_major_area_m2)
+    return feats[~drop].copy()
 
 
 def subte_stations() -> gpd.GeoDataFrame:
