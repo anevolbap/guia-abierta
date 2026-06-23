@@ -1,0 +1,90 @@
+# Guía T Remake — single source of truth.
+# Every module reads this through config.py. Override on the CLI is not
+# supported on purpose: change values here so a run is reproducible.
+
+crs:
+  # Work CRS: POSGAR 2007 Faja 5. Metric, covers CABA, keeps a uniform
+  # real-world scale across pages. Validate early (warped grid == classic bug).
+  work: "EPSG:9498"
+  geographic: "EPSG:4326"
+
+page:
+  # A5 portrait, millimetres.
+  width_mm: 148
+  height_mm: 210
+  # Printable map window inside the page (leaves room for margins + header).
+  margin_left_mm: 6
+  margin_right_mm: 4
+  margin_top_mm: 12      # header band: page number + neighbour refs
+  margin_bottom_mm: 8    # footer band: scale bar + attribution
+
+scale:
+  # 1:denominator. Main tuning knob. 20000 -> ~2.76 x 3.8 km per page.
+  denominator: 20000
+
+subgrid:
+  cols: 5            # labelled A..E (left to right)
+  rows: 7            # labelled 1..7 (top to bottom)
+  col_labels: "ABCDE"
+  row_labels: "1234567"
+
+grid:
+  # A tile is kept only if its land coverage (intersection with the CABA
+  # boundary, or with streets when available) reaches this fraction.
+  min_land_fraction: 0.04
+  # Snap the fishnet origin to a round metric value so reruns are stable.
+  snap_origin_m: 1000
+
+modes:
+  colectivo: true
+  subte: true
+
+coverage_gate:
+  # transit_index fails loudly if these are not met (wrong feed symptom).
+  colectivo_min_lines: 120
+  colectivo_max_lines: 180
+  subte_min_lines: 6
+
+landmarks:
+  # OSM tag selectors per category. (key, value) -> category.
+  categories:
+    plaza:      [["leisure", "park"], ["leisure", "garden"]]
+    parque:     [["leisure", "nature_reserve"]]
+    hospital:   [["amenity", "hospital"]]
+    estacion:   [["railway", "station"], ["railway", "subway_entrance"]]
+    estadio:    [["leisure", "stadium"], ["sport", "soccer"]]
+    cementerio: [["landuse", "cemetery"], ["amenity", "grave_yard"]]
+    civico:     [["office", "government"], ["amenity", "townhall"]]
+  # Minimum area (m^2) for polygon landmarks to be worth labelling.
+  min_polygon_area_m2: 3000
+
+mvp:
+  # When enabled, scope everything to a single barrio and a page cap.
+  # Proves the full round-trip cheaply. Turn off for full-CABA runs.
+  enabled: true
+  barrio: "PALERMO"   # large + iconic: spans several pages, Subte D, big parks
+  max_pages: 6
+
+datos_fecha: "2026-06"   # printed as "datos a fecha X" in the footer/colophon
+
+paths:
+  data: "data"
+  output: "output"
+  pages: "output/pages"
+
+sources:
+  # CKAN portals. fetch.py resolves the actual resource URL via the CKAN API
+  # (package_show) so we survive resource-id churn. Direct overrides allowed.
+  transporte_ckan: "https://datos.transporte.gob.ar"
+  ba_ckan: "https://data.buenosaires.gob.ar"
+  colectivos_dataset: "recorridos-de-servicios-de-colectivos-amba"
+  subte_dataset: "subte-gtfs"
+  calles_dataset: "calles"
+  barrios_dataset: "barrios"
+  # Optional hard overrides (leave empty to auto-resolve via CKAN).
+  colectivos_url: ""
+  subte_gtfs_url: ""
+  calles_url: ""
+  barrios_url: ""
+  # CABA bounding box (lon/lat) fallback if barrios download fails.
+  caba_bbox_fallback: [-58.531, -34.705, -58.335, -34.526]

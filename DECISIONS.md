@@ -1,0 +1,163 @@
+# Guía T Remake — design and decisions
+
+Reference doc for the build. Records what was built, what the data actually
+looked like, and every decision made while implementing `PLAN.md`. Read this
+before changing the pipeline.
+
+## Status
+
+Full pipeline runs end to end and produces a real printable A5 PDF. Verified on
+2026-06-23 in MVP mode (barrio Palermo).
+
+MVP run results:
+- 4 map pages, 140 sub-grid cells (2x2 page grid over Palermo).
+- 383 streets indexed.
+- 138 landmarks (134 OSM POIs + subte stations).
+- 72 colectivo lines and subte B/D/H crossing the booklet area; 107 cells with
+  transit service.
+- Final `output/guiat.pdf`: 21 pages, page size 148 x 210 mm (A5) confirmed.
+
+Round-trip check (the MVP acceptance test) passes: a landmark resolves to a
+cell, and the cell resolves back to the right lines. Examples:
+- Subte station "Jose Hernandez" -> cell `1-A7` -> `subte D` + 14 colectivos.
+- Subte station "Dorrego" -> cell `3-A5` -> `subte B`.
+
+## What the data actually is
+
+These were the open questions in `PLAN.md`. Answers from the live downloads:
+
+- Colectivos (AMBA recorridos) is a single **KML**, one layer
+  `Lineas_JN_RMBA_CNRT2`, 1128 LineString features. Useful columns:
+  `Linea` (138 distinct lines, zero-padded like `001`), `Recorrido` (ramal:
+  A, B, ...), `Sentido` (`IDA` / `VUELTA`). So **ida/vuelta is provided** and we
+  split on it. Ramales of the same line are merged per direction.
+- The KML driver is not enabled in Fiona's whitelist, but GeoPandas reads it
+  through the **pyogrio** engine (the default), so no special handling is
+  needed beyond `gpd.read_file`.
+- Subte GTFS downloads as a zip that **wraps another zip** (a single entry named
+  `subte_gtfs` that is itself the real GTFS). `fetch.py` unwraps it. The GTFS
+  has `shapes.txt`, `trips.txt` with `direction_id`, and `route_short_name`
+  values A, B, C, D, E, H plus two Premetro routes (`PM-C`, `PM-S`).
+- Barrios and Callejero both offer a GeoJSON resource on the CKAN portal; we
+  pick those. Barrio name column is `nombre`. Street name column is `nombre`.
+
+## Baked-in decisions (from the spec, confirmed)
+
+- CRS `EPSG:9498` (POSGAR 2007 Faja 5). Validated as metric at startup. At
+  1:20000 a page tile is 2760 x 3800 m and a cell is 552 x 543 m.
+- A5 portrait, map window 138 x 190 mm inside configurable margins.
+- Sub-grid 5 cols (A-E) x 7 rows (1-7); refs like `12-C4`.
+- Page numbering in reading order: top row first, left to right.
+- Maps draw streets + sub-grid + landmarks + subte lines/stations. **No
+  colectivo route lines** (137 lines would be spaghetti). Subte is drawn (6
+  color-coded lines).
+- Offline-final: no QR codes, no live lookups. The indices carry everything.
+
+## Decisions I made while implementing
+
+1. **MVP barrio = Palermo, not Chacarita.** Chacarita is small enough to fit in
+   a single page at 1:20000, which does not exercise multi-page numbering or
+   cross-page indices. Palermo spans a 2x2 page grid, has the Subte D line and
+   several stations, and large parks. Better proof of the round-trip. Change
+   `mvp.barrio` in `config.yaml` to scope elsewhere.
+
+2. **Clip transit to the union of page tiles, not the barrio polygon.** The
+   rendered pages are rectangles that extend past the barrio outline, and the
+   maps draw streets in that whole rectangle. So the index must reflect the
+   rectangle, not the barrio. Clipping colectivos to the barrio polygon (as the
+   spec's "clip to CABA" implies) would have made colectivo coverage
+   inconsistent with subte coverage and with what is actually drawn. In a full
+   CABA run the page tiles already approximate CABA, so this is equivalent
+   there and strictly more correct in MVP.
+
+3. **Lines that never enter the booklet are dropped** from the line index.
+   `subte_lines()` returns all subte routes; only those with at least one cell
+   in the booklet are listed. Avoids empty entries like "Subte A: (none)".
+
+4. **Cell ordering by first entry along the line.** `order_cells_along` merges
+   the line, walks it at 1/3-cell steps, and records each cell the first time
+   the path enters it. Gives a human-sensible ordered cell list per line/
+   direction without needing stop sequences (the colectivo data has none).
+
+5. **Spanish collation by hand**, not via a system locale. Accents fold to the
+   base letter for primary order and ñ is its own letter right after n. Avoids
+   depending on `es_ES.UTF-8` being installed. See `street_index.spanish_key`.
+
+6. **Coverage gate is skipped in MVP** (a single barrio legitimately has far
+   fewer than 120 lines) and enforced only in full mode, where it guards
+   against accidentally using the ~27-line city GTFS instead of the ~137-line
+   AMBA feed.
+
+7. **gtfs_kit is not used for geometry.** Its `geometrize_shapes` API differs
+   across versions and broke. Subte shapes are built straight from
+   `shapes.txt` / `trips.txt` / `routes.txt` with pandas + shapely. More robust.
+   `gtfs_kit` stays a declared dependency for possible Phase 2 use.
+
+8. **Exact print scale via axes geometry.** Each page is an A5 figure; the map
+   axes box is positioned to be physically `map_w_mm x map_h_mm` and its data
+   limits are set to `page_w_m x page_h_m`. Because both ratios are equal, an
+   equal-aspect axes fills the box exactly and the scale is a true 1:20000. This
+   is the classic failure point called out in the spec, so it is handled
+   explicitly rather than left to autoscaling.
+
+9. **Landmark and OSM fetch degrade gracefully.** If Overpass is unreachable,
+   `build_landmarks` warns and continues with just subte stations, so a run
+   still completes.
+
+## Module map
+
+| Module | Role | Key output |
+|--------|------|-----------|
+| `config.py` | load `config.yaml`, derive page geometry, validate CRS | `CFG` |
+| `fetch.py` | CKAN resource resolution + cache; unwrap nested GTFS | `data/*` |
+| `grid.py` | boundary union, page fishnet, sub-grid, reading order | `data/grid.gpkg` |
+| `street_index.py` | calles -> cells, dedup, Spanish sort | `output/street_index.json` |
+| `landmarks.py` | OSM POIs + subte stations -> cells | `output/landmarks.json` |
+| `transit_index.py` | colectivo + subte -> line<->cell cross-reference | `output/{line_to_cells,cell_to_lines}.json` |
+| `render_pages.py` | per-page vector map at true scale | `output/pages/NN.pdf` |
+| `frontmatter.py` | cover + overview + 3 indices via WeasyPrint | `output/*.pdf` |
+| `assemble.py` | merge into one booklet | `output/guiat.pdf` |
+| `main.py` | orchestrate, with `--only` / `--from` | - |
+
+## Output data shapes
+
+`cell_to_lines.json` (the booklet's brain):
+```json
+{ "cells": { "1-A7": [ {"mode":"subte","line":"D"},
+                        {"mode":"colectivo","line":"041"}, ... ] } }
+```
+
+`line_to_cells.json`:
+```json
+{ "lines": [ {"mode":"subte","line":"D",
+              "directions": {"ida":["4-E7","4-D7",...], "vuelta":[...]}} ] }
+```
+
+## Known limitations
+
+- Label placement is naive (matplotlib `annotate` with a fixed offset); labels
+  can overlap on dense pages. Phase 2 swaps in QGIS Atlas for collision-aware
+  labels, as the spec notes.
+- Colectivo line numbers keep their zero padding (`001`). Sorting treats them
+  as integers, but display is the raw string. Cosmetic.
+- The colectivo feed was last refreshed ~2022-23; routes drift. The footer and
+  cover print "datos a fecha" so the reader knows. Re-fetch later by deleting
+  `data/` and rerunning.
+- `min_land_fraction` drops empty tiles by land area when no street layer is
+  passed to `build_grid`; passing streets gives a sharper test but the default
+  orchestration uses the area test, which is enough for CABA.
+
+## Going to full CABA
+
+Set `mvp.enabled: false` in `config.yaml` and rerun. Expect ~36-40 pages at
+1:20000 and the coverage gate to enforce 120-180 colectivo lines + >=6 subte.
+Scale is the main knob: lower `scale.denominator` for more, smaller pages.
+
+## Licenses
+
+- AMBA recorridos: CC-BY 4.0 (Ministerio de Transporte).
+- Subte / Callejero / Barrios: GCBA open data.
+- Landmarks: © OpenStreetMap contributors, ODbL.
+
+Attribution is printed on every map page and the cover. Code is MIT. No AGPL
+obligation: OCitySMap is not a dependency.
