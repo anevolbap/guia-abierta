@@ -41,6 +41,10 @@ def _street_label_col(gdf):
 
 
 def _load_layers():
+    manz = None
+    manz_path = CFG.data_dir / "manzanas.geojson"
+    if manz_path.exists():
+        manz = gpd.read_file(manz_path).to_crs(CFG.crs_work)
     streets = gpd.read_file(CFG.data_dir / "calles.geojson").to_crs(CFG.crs_work)
     lab = _street_label_col(streets)
     streets["__label"] = (streets[lab].fillna("").map(abbreviate) if lab else "")
@@ -61,7 +65,7 @@ def _load_layers():
 
             subte_geo[line] = unary_union(list(dirs.values()))
         stations = subte_stations().to_crs(CFG.crs_work)
-    return streets, osm, subte_geo, stations
+    return manz, streets, osm, subte_geo, stations
 
 
 def _axes_for_page(fig, tile_bounds):
@@ -153,24 +157,35 @@ def _label_streets(ax, st):
 
 
 def render_page(page_no, tile, layers):
-    streets, osm, subte_geo, stations = layers
-    bounds = tile.bounds
+    manz, streets, osm, subte_geo, stations = layers
+    x0, y0, x1, y1 = tile.bounds
+    bounds = (x0, y0, x1, y1)
     clip = gpd.GeoDataFrame(geometry=[tile], crs=CFG.crs_work)
 
     fig = plt.figure(figsize=(CFG.mm_to_in(CFG.page_w_mm), CFG.mm_to_in(CFG.page_h_mm)))
     ax = _axes_for_page(fig, bounds)
 
-    # parks / cemeteries as light area fills (context)
+    # Guía T base: fill the city blocks (manzanas) so the streets read as the
+    # white gaps between them. cx-subsetting by bbox is fast; the axes clips.
+    if manz is not None:
+        blocks = manz.cx[x0:x1, y0:y1]
+        if not blocks.empty:
+            blocks.plot(ax=ax, facecolor="#e9e3d6", edgecolor="#cdc6b4",
+                        lw=0.2, zorder=1)
+
+    # parks as green fills, over the blocks
     if osm is not None:
         for cat, style in FILL_STYLE.items():
             area = gpd.clip(osm[osm["category"] == cat], clip)
             if not area.empty:
-                area.plot(ax=ax, lw=0.3, zorder=1, **style)
+                area.plot(ax=ax, lw=0.3, zorder=1.4, **style)
 
-    # streets + names
-    st = gpd.clip(streets, clip)
+    # avenidas highlighted as pale-yellow corridors (sits in the white gap)
+    st = gpd.clip(streets.cx[x0:x1, y0:y1], clip)
+    avs = st[st["__av"]]
+    if not avs.empty:
+        avs.plot(ax=ax, color="#f4dd7a", lw=2.4, zorder=1.6, capstyle="round")
     if not st.empty:
-        st.plot(ax=ax, color="0.35", lw=0.35, zorder=2)
         _label_streets(ax, st)
 
     # subte lines
@@ -210,7 +225,7 @@ def render_page(page_no, tile, layers):
              ha="center", va="center", fontsize=11, weight="bold")
     fig.text(0.5, CFG.margin_bottom_mm / CFG.page_h_mm / 2,
              f"Guía T · 1:{int(CFG.scale_denom)} · datos {CFG.datos_fecha} · "
-             "OSM (ODbL) + AMBA (CC-BY)", ha="center", va="center", fontsize=4)
+             "GCBA + OSM (ODbL) + AMBA (CC-BY)", ha="center", va="center", fontsize=4)
 
     out = CFG.pages_dir / f"{page_no:02d}.pdf"
     fig.savefig(out)

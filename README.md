@@ -72,7 +72,8 @@ and data sources there.
 - Colectivos: AMBA *Recorridos de servicios de colectivos* (Min. Transporte),
   CC-BY 4.0. Geometry-only, clipped to CABA. This is the full ~137-line feed,
   not the ~27-line city GTFS.
-- Subte / Callejero / Barrios: GCBA open data.
+- Subte / Callejero / Barrios / Manzanas (city blocks): GCBA open data. Blocks
+  are filled tan so streets read as the white gaps, the Guía T look.
 - Landmarks: © OpenStreetMap contributors, ODbL.
 
 Both attributions are printed on every map page and on the cover. Code is MIT;

@@ -140,10 +140,15 @@ def fetch_barrios() -> Path:
     return fetch_geojson("barrios_dataset", "barrios_url", "barrios.geojson")
 
 
+def fetch_manzanas() -> Path:
+    return fetch_geojson("manzanas_dataset", "manzanas_url", "manzanas.geojson")
+
+
 def fetch_all() -> dict[str, Path]:
     out: dict[str, Path] = {}
     out["barrios"] = fetch_barrios()
     out["calles"] = fetch_calles()
+    out["manzanas"] = fetch_manzanas()
     if CFG.modes.get("colectivo", True):
         out["colectivos"] = fetch_colectivos()
     if CFG.modes.get("subte", True):

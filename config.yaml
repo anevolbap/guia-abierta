@@ -88,10 +88,12 @@ sources:
   subte_dataset: "subte-gtfs"
   calles_dataset: "calles"
   barrios_dataset: "barrios"
+  manzanas_dataset: "manzanas"
   # Optional hard overrides (leave empty to auto-resolve via CKAN).
   colectivos_url: ""
   subte_gtfs_url: ""
   calles_url: ""
   barrios_url: ""
+  manzanas_url: ""
   # CABA bounding box (lon/lat) fallback if barrios download fails.
   caba_bbox_fallback: [-58.531, -34.705, -58.335, -34.526]

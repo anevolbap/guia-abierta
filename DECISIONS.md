@@ -186,6 +186,19 @@ These were the open questions in `PLAN.md`. Answers from the live downloads:
     halo so the name reads against the street lines. Avenidas are larger and
     blue. Cemeteries and civic buildings were dropped from the landmark set.
 
+## Guía T visual style: block fill (fourth pass)
+
+18. **Maps fill city blocks, streets are the white gaps.** This is the single
+    most recognisable Guía T trait. Added the GCBA *manzanas catastrales*
+    dataset (7.7 MB GeoJSON). The renderer fills blocks tan (`#e9e3d6`, thin
+    edge) and no longer draws minor streets as lines: the white gaps between
+    blocks are the streets. Avenidas are highlighted as pale-yellow corridors
+    (`#f4dd7a`) sitting in their gap. Parks fill green over the blocks; subte
+    lines, stations, landmarks, the sub-grid and the bold halo'd street names
+    draw on top. Manzanas are subset per page with `.cx[bbox]` (fast) and the
+    axes clips; only the avenida/label subset is exact-clipped. Before this the
+    maps drew grey street lines on white, which did not read as a Guía T.
+
 ## Module map
 
 | Module | Role | Key output |
