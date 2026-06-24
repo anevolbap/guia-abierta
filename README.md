@@ -1,82 +1,79 @@
-# Guía T Remake
+# Guía Bondi
 
-Open-source, printable A5 PDF booklet for navigating Buenos Aires by colectivo
-and subte, in the style of the classic Guía T. Generated from open data,
-offline-final (no QR codes, no live lookups: the booklet is self-sufficient).
+Español · [English version](README.en.md)
 
-It replicates the way the original Guía T is used:
+Folleto **A5 imprimible** (PDF) de código abierto para moverte por Buenos Aires
+en colectivo y subte, al estilo de la clásica Guía T. Se arma con datos
+abiertos y es 100% offline: no tiene códigos QR ni consultas online, el folleto
+se vale solo. ("Guía T" es un nombre comercial; este proyecto usa un nombre
+propio, ver `DATA.md`.)
 
-1. Look up your street in the **street index**, get a cell reference like
-   `12-C4` (page 12, cell C4).
-2. Turn to **map page 12** and find cell C4 (letters A-E across, numbers 1-7
-   down).
-3. Flip to the **facing page** (12 · líneas): same grid, and cell C4 lists the
-   lines passing through it. Numbers are colectivos, a coloured letter is the
-   subte.
+Es A5 vertical (148 × 210 mm), pensado para imprimir como guía de bolsillo.
 
-Every map page is followed by its line-grid page. Map pages deliberately do
-**not** draw colectivo routes (137 lines would be spaghetti); the facing
-line-grid carries that. Subte is the exception: 6 colour-coded lines, drawn on
-the map too. A line index at the back does the reverse lookup (line -> cells).
+## Cómo se usa (el método Guía T)
 
-## Install
+1. Buscá tu calle en el **índice de calles** y anotá la referencia, por ejemplo
+   `12-C4` (página 12, celda C4).
+2. Andá a la **página del mapa** 12 y ubicá la celda C4 (letras A–E arriba,
+   números 1–7 al costado).
+3. Pasá a la **página de al lado** (la grilla de líneas): es la misma
+   cuadrícula. Leé la celda C4 y vas a ver las líneas que pasan por ahí. Los
+   números son colectivos; la letra de color es el subte.
+
+Cada página de mapa va seguida de su grilla de líneas. Los mapas a propósito
+**no** dibujan los recorridos de colectivo (serían ~137 líneas, un despelote);
+de eso se encarga la grilla de al lado. El subte sí va en el mapa (6 líneas con
+color). Las manzanas van rellenas en tono tierra, así las calles quedan como los
+huecos blancos.
+
+## Instalación
 
 ```bash
 uv venv --python 3.11
 uv pip install -e .
 ```
 
-WeasyPrint needs system libraries (Pango, Cairo, GDK-PixBuf, HarfBuzz). On
-Debian/Ubuntu:
+WeasyPrint necesita librerías del sistema (Pango, Cairo, GDK-PixBuf, HarfBuzz).
+En Debian/Ubuntu:
 
 ```bash
 sudo apt install libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
                  libffi-dev libcairo2 libharfbuzz0b
 ```
 
-GeoPandas/Fiona/pyproj ship binary wheels, so GDAL does not need a separate
-system install.
+GeoPandas/Fiona/pyproj traen wheels binarios, así que GDAL no hace falta
+instalarlo aparte.
 
-## Run
+## Uso
 
 ```bash
-uv run python main.py            # full pipeline -> output/guiat.pdf
-uv run python main.py --list     # show the 9 stages
+uv run python main.py            # pipeline completo -> output/guiat.pdf
+uv run python main.py --list     # lista las 9 etapas
 uv run python main.py --only grid
-uv run python main.py --from transit   # a stage and everything after
+uv run python main.py --from transit   # una etapa y todo lo que sigue
 ```
 
-The default `config.yaml` runs in **MVP mode**: scoped to one barrio
-(`CHACARITA`) with a 6-page cap, to prove the full round-trip cheaply. Set
-`mvp.enabled: false` for a full-CABA run.
+`config.yaml` es la única fuente de verdad (escala, sub-grilla, título, alcance,
+fuentes de datos). Con `mvp.enabled: true` se limita a un barrio para una prueba
+rápida; con `false` arma toda la CABA (~26 páginas).
 
 ## Pipeline
 
-| Stage | Module | Output |
+| Etapa | Módulo | Salida |
 |-------|--------|--------|
-| 1 | `config.py` | validated CRS + derived page geometry |
-| 2 | `fetch.py` | cached downloads in `data/` |
-| 3 | `grid.py` | `data/grid.gpkg` (pages + cells) |
+| 1 | `config.py` | CRS validado + geometría de página |
+| 2 | `fetch.py` | descargas cacheadas en `data/` |
+| 3 | `grid.py` | `data/grid.gpkg` (páginas + celdas) |
 | 4 | `street_index.py` | `output/street_index.json` |
 | 5 | `landmarks.py` | `output/landmarks.json` |
-| 6 | `transit_index.py` | `output/line_to_cells.json`, `output/cell_to_lines.json` |
-| 7 | `render_pages.py` | `output/pages/NN.pdf` (map) + `NN_lines.pdf` (line grid) |
-| 8 | `frontmatter.py` | cover + index PDFs |
+| 6 | `transit_index.py` | `output/{line_to_cells,cell_to_lines}.json` |
+| 7 | `render_pages.py` | `output/pages/NN.pdf` (mapa) + `NN_lines.pdf` (grilla) |
+| 8 | `frontmatter.py` | tapa + índice de calles |
 | 9 | `assemble.py` | `output/guiat.pdf` |
 
-`config.yaml` is the single source of truth. Change scale, sub-grid, MVP scope,
-and data sources there.
+## Datos y licencias
 
-## Data + licenses
-
-- Colectivos: AMBA *Recorridos de servicios de colectivos* (Min. Transporte),
-  CC-BY 4.0. Geometry-only, clipped to CABA. This is the full ~137-line feed,
-  not the ~27-line city GTFS.
-- Subte / Callejero / Barrios / Manzanas (city blocks): GCBA open data. Blocks
-  are filled tan so streets read as the white gaps, the Guía T look.
-- Landmarks: © OpenStreetMap contributors, ODbL.
-
-Both attributions are printed on every map page and on the cover. Code is MIT;
-no AGPL obligation (OCitySMap is not a dependency).
-
-See `DECISIONS.md` for the design rationale and every baked-in choice.
+El código va con licencia MIT (`LICENSE`). Todos los datos de entrada y el
+folleto generado son abiertos, solo piden atribución. La tabla completa y el
+texto de atribución están en `DATA.md`. Las decisiones de diseño, en
+`DECISIONS.md`.
