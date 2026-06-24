@@ -72,5 +72,25 @@ data sources). `mvp.enabled: true` scopes to one barrio for a quick test;
 ## Data and licenses
 
 Code is MIT (`LICENSE`). All input data and the generated booklet are open,
-attribution-only. Full table and attribution text in `DATA.md`. Design notes in
-`DECISIONS.md`.
+attribution-only (no copyleft affects the printed booklet).
+
+| Layer | Source | License |
+|-------|--------|---------|
+| AMBA bus routes | Min. de Transporte | CC-BY 4.0 |
+| Subte GTFS | GCBA | CC-BY 2.5 AR |
+| Street centerlines | GCBA | CC-BY 2.5 AR |
+| Barrios | GCBA | CC-BY 2.5 AR |
+| City blocks (manzanas) | GCBA | CC-BY 2.5 AR |
+| Points of interest | OpenStreetMap | ODbL 1.0 |
+
+ODbL's share-alike applies to derived databases, not to a produced work (a
+printed booklet), which only needs to credit OpenStreetMap. So the booklet can
+be distributed freely with attributions kept, and the code can be MIT.
+
+Minimum attribution when redistributing the booklet:
+
+> AMBA routes (Min. Transporte, CC-BY 4.0) · Subte / streets / barrios / blocks
+> (GCBA, CC-BY 2.5 AR) · Points of interest © OpenStreetMap contributors (ODbL).
+
+On the name: "Guía T" is a commercial name, so the project uses its own
+(`Guía Abierta`, set in `config.yaml`).

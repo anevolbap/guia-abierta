@@ -76,6 +76,28 @@ para una prueba rápida; con `false` se genera toda la CABA (unas 26 páginas).
 ## Datos y licencias
 
 El código se publica bajo licencia MIT (`LICENSE`). Todos los datos de entrada y
-el folleto generado son abiertos y solo exigen atribución. La tabla completa y
-el texto de atribución se encuentran en `DATA.md`. Las decisiones de diseño
-están documentadas en `DECISIONS.md`.
+el folleto generado son abiertos y solo exigen atribución (ninguna licencia
+copyleft afecta al folleto impreso).
+
+| Capa | Fuente | Licencia |
+|------|--------|----------|
+| Recorridos de colectivos AMBA | Ministerio de Transporte | CC-BY 4.0 |
+| Subte GTFS | GCBA | CC-BY 2.5 AR |
+| Callejero | GCBA | CC-BY 2.5 AR |
+| Barrios | GCBA | CC-BY 2.5 AR |
+| Manzanas catastrales | GCBA | CC-BY 2.5 AR |
+| Puntos de interés (POIs) | OpenStreetMap | ODbL 1.0 |
+
+La ODbL incluye una cláusula "share-alike", pero se aplica a bases de datos
+derivadas, no a una obra producida (un folleto impreso), que solo debe atribuir
+a OpenStreetMap. Por eso el folleto puede distribuirse libremente manteniendo
+las atribuciones, y el código puede ser MIT sin conflicto.
+
+Atribución mínima para redistribuir el folleto:
+
+> Recorridos AMBA (Min. Transporte, CC-BY 4.0) · Subte / Callejero / Barrios /
+> Manzanas (GCBA, CC-BY 2.5 AR) · Puntos de interés © OpenStreetMap
+> contributors (ODbL).
+
+Sobre el nombre: "Guía T" es un nombre comercial, por eso el proyecto utiliza un
+nombre propio (`Guía Abierta`, configurable en `config.yaml`).
