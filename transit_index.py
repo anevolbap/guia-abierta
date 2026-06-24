@@ -16,12 +16,17 @@ import json
 import zipfile
 from pathlib import Path
 
+import math
+
 import geopandas as gpd
-from shapely.geometry import MultiLineString
+import pandas as pd
+from shapely import STRtree
+from shapely.geometry import MultiLineString, Point
 from shapely.ops import linemerge, unary_union
 
 from config import CFG
 from grid import load_grid
+from names import abbreviate
 
 LINE_COL_CANDIDATES = [
     "LINEA", "linea", "Linea", "LÍNEA", "linea_desc", "nombre", "NOMBRE",
@@ -220,6 +225,95 @@ def subte_lines() -> dict[str, dict[str, object]]:
 
 
 # --------------------------------------------------------------------------
+# route -> street names (so the line index reads as a route, not coordinates)
+# --------------------------------------------------------------------------
+def _load_street_network():
+    """calles geometries + display names + an STRtree, in the work CRS."""
+    calles = gpd.read_file(CFG.data_dir / "calles.geojson").to_crs(CFG.crs_work)
+    namecol = next((c for c in ("nom_mapa", "nomoficial", "nombre", "nom")
+                    if c in calles.columns), None)
+    geoms = list(calles.geometry.values)
+    names = [abbreviate(str(v)) if (namecol and pd.notna(v := calles.iloc[i][namecol]))
+             else "" for i in range(len(calles))]
+    return geoms, names, STRtree(geoms)
+
+
+def _seg_endpoints(geom):
+    if geom.geom_type == "LineString":
+        return geom.coords[0], geom.coords[-1]
+    if geom.geom_type == "MultiLineString" and len(geom.geoms):
+        longest = max(geom.geoms, key=lambda g: g.length)
+        return longest.coords[0], longest.coords[-1]
+    return None
+
+
+def route_streets(route, geoms, names, tree, corridor_m=12.0, max_angle=35.0):
+    """Ordered street names a route travels ALONG (crossings filtered out by a
+    corridor-overlap + parallelism test). Consecutive duplicates collapsed."""
+    if route is None or route.is_empty:
+        return []
+    route = linemerge(route) if route.geom_type != "LineString" else route
+    corridor = route.buffer(corridor_m)
+    try:
+        idxs = tree.query(corridor, predicate="intersects")
+    except Exception:
+        idxs = tree.query(corridor)
+    items = []
+    for i in idxs:
+        i = int(i)
+        nm = names[i]
+        if not nm:
+            continue
+        seg = geoms[i]
+        inter = seg.intersection(corridor)
+        ilen = inter.length
+        if ilen < 25:
+            continue
+        if ilen < 0.5 * seg.length and ilen < 60:
+            continue  # likely a crossing, not travelled along
+        ends = _seg_endpoints(seg)
+        if ends is None:
+            continue
+        try:
+            d = route.project(seg.interpolate(0.5, normalized=True))
+            a = route.interpolate(max(0.0, d - 6))
+            b = route.interpolate(min(route.length, d + 6))
+        except Exception:
+            continue
+        rb = math.degrees(math.atan2(b.y - a.y, b.x - a.x))
+        sb = math.degrees(math.atan2(ends[1][1] - ends[0][1], ends[1][0] - ends[0][0]))
+        diff = abs(rb - sb) % 180
+        diff = min(diff, 180 - diff)
+        if diff > max_angle:
+            continue  # crosses the route, not parallel to it
+        items.append((d, nm))
+    items.sort(key=lambda t: t[0])
+    out, seen = [], set()
+    for _, nm in items:
+        if _is_junk_street(nm) or nm in seen:
+            continue
+        seen.add(nm)
+        out.append(nm)
+    return out
+
+
+_JUNK_STREET = ("TUNEL", "VIADUCTO", "PUENTE", "ACCESO", "CALZADA", "DARSENA",
+                "ROTONDA", "BAJADA", "SUBIDA", "EMPALME", "CRUCE", "PEAJE")
+
+
+def _is_junk_street(name: str) -> bool:
+    u = name.upper()
+    return any(k in u for k in _JUNK_STREET)
+
+
+def _merge_route_streets(seqs):
+    seqs = [s for s in seqs if s]
+    if not seqs:
+        return []
+    return max(seqs, key=len)  # the fuller direction is a fine description
+
+
+# --------------------------------------------------------------------------
 # build
 # --------------------------------------------------------------------------
 def build_transit_index() -> dict:
@@ -230,14 +324,18 @@ def build_transit_index() -> dict:
 
     lines_out = []
     cell_to_lines: dict[str, list[dict]] = {}
+    print("[transit] loading street network for route descriptions...")
+    geoms, names, tree = _load_street_network()
 
     def add(mode: str, source: dict[str, dict[str, object]]) -> int:
         kept = 0
         for line, dirs in source.items():
             directions = {}
+            seqs = []
             for dname, geom in dirs.items():
                 refs = order_cells_along(geom, cells, sindex)
                 directions[dname] = refs
+                seqs.append(route_streets(geom, geoms, names, tree))
                 for ref in refs:
                     tag = {"mode": mode, "line": line}
                     bucket = cell_to_lines.setdefault(ref, [])
@@ -247,7 +345,8 @@ def build_transit_index() -> dict:
             if not any(directions.values()):
                 continue
             kept += 1
-            lines_out.append({"mode": mode, "line": line, "directions": directions})
+            lines_out.append({"mode": mode, "line": line, "directions": directions,
+                              "streets": _merge_route_streets(seqs)})
         return kept
 
     n_col = n_sub = 0

@@ -318,7 +318,8 @@ def render_transit_page(page_no, page_cells, lines_by_ref):
             avail = 18.5 if subte else 22.5
             fs_h = avail / (n_lines * 1.3) / 0.3528
             fs_w = 24.0 / (max_len * 0.55) / 0.3528
-            fs = max(2.8, min(12.0, fs_h, fs_w))
+            # narrow band so cells look harmonised (sparse cells don't balloon)
+            fs = max(4.8, min(7.6, fs_h, fs_w))
             top = CFG.rows - row - (0.30 if subte else 0.11)
             ax.text(cx, top, txt, ha="center", va="top", fontsize=fs,
                     color="#111", linespacing=1.12, clip_on=True)

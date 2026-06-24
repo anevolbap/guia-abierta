@@ -221,6 +221,15 @@ def _line_cells(ln):
     return sorted(seen, key=_ref_key)
 
 
+def _line_route(ln):
+    """Route as street names (readable); falls back to cell refs if the street
+    match produced nothing."""
+    streets = ln.get("streets") or []
+    if streets:
+        return ", ".join(streets)
+    return ", ".join(_line_cells(ln))
+
+
 def line_index_pdf():
     data = json.loads((CFG.output_dir / "line_to_cells.json").read_text(encoding="utf-8"))
     colect = sorted((l for l in data["lines"] if l["mode"] == "colectivo"),
@@ -230,12 +239,12 @@ def line_index_pdf():
 
     crows = "".join(
         f"<div class='lrow'><span class='lbadge'>{escape(str(l['line']))}</span>"
-        f"<span class='lcells'>{', '.join(_line_cells(l))}</span></div>"
+        f"<span class='lcells'>{escape(_line_route(l))}</span></div>"
         for l in colect)
     srows = "".join(
         f"<div class='lrow'><span class='sbadge' style='background:"
         f"{SUBTE_HEX.get(str(l['line']).upper(), '#444')}'>{escape(str(l['line']))}</span>"
-        f"<span class='lcells'>{', '.join(_line_cells(l))}</span></div>"
+        f"<span class='lcells'>{escape(_line_route(l))}</span></div>"
         for l in subte)
     body = (f"<h2>Líneas de colectivo</h2><div class='linecols'>{crows}</div>"
             f"<h2>Subte</h2><div class='linecols'>{srows}</div>")
