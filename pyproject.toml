@@ -32,6 +32,6 @@ build-backend = "hatchling.build"
 # Flat module layout (modules live at repo root, per the build spec).
 include = [
     "config.py", "fetch.py", "grid.py", "street_index.py", "landmarks.py",
-    "transit_index.py", "render_pages.py", "frontmatter.py", "assemble.py",
-    "main.py",
+    "names.py", "transit_index.py", "render_pages.py", "frontmatter.py",
+    "assemble.py", "impose.py", "fonts.py", "main.py", "assets/fonts/*",
 ]

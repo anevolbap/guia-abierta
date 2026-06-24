@@ -23,7 +23,8 @@ STAGES = [
     ("transit", "line<->cell cross-reference", lambda: _transit()),
     ("render", "per-page map PDFs", lambda: _render()),
     ("frontmatter", "cover + indices", lambda: _frontmatter()),
-    ("assemble", "merge into guiat.pdf", lambda: _assemble()),
+    ("assemble", "merge into the booklet PDF", lambda: _assemble()),
+    ("impose", "2-up saddle-stitch booklet for printing", lambda: _impose()),
 ]
 
 
@@ -67,6 +68,11 @@ def _assemble():
     assemble()
 
 
+def _impose():
+    from impose import impose
+    impose()
+
+
 def run(stages):
     for name, desc, fn in stages:
         t0 = time.time()
@@ -95,7 +101,8 @@ def main():
         run(STAGES[i:])
         return
     run(STAGES)
-    print(f"\nDone. Booklet at {CFG.output_dir / 'guiat.pdf'}")
+    print(f"\nDone. Reading PDF: {CFG.output_pdf}")
+    print(f"      Print booklet: {CFG.booklet_pdf}")
 
 
 if __name__ == "__main__":

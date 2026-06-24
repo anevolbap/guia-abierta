@@ -10,11 +10,13 @@ Builds:
 from __future__ import annotations
 
 import json
+import unicodedata
 from html import escape
 
 import matplotlib
 
 matplotlib.use("Agg")
+import fonts  # noqa: E402  registers bundled fonts for matplotlib
 import matplotlib.pyplot as plt
 from weasyprint import HTML
 
@@ -22,8 +24,9 @@ from config import CFG
 from grid import load_boundary, load_grid
 
 PAGE_CSS = f"""
+{fonts.css_font_face()}
 @page {{ size: {CFG.page_w_mm}mm {CFG.page_h_mm}mm; margin: 12mm 10mm; }}
-* {{ font-family: 'DejaVu Sans', sans-serif; }}
+* {{ font-family: '{fonts.BODY}', sans-serif; }}
 body {{ font-size: 8.5pt; color: #111; }}
 h1 {{ font-size: 20pt; margin: 0 0 4mm; }}
 h2 {{ font-size: 12pt; border-bottom: 1px solid #444; padding-bottom: 1mm;
@@ -38,6 +41,23 @@ h2 {{ font-size: 12pt; border-bottom: 1px solid #444; padding-bottom: 1mm;
 .badge {{ display: inline-block; width: 5mm; height: 5mm; border-radius: 50%;
           text-align: center; color: #fff; font-weight: bold; }}
 img.overview {{ width: 100%; }}
+/* street index: dense columns with big letter dividers (Guía T calles) */
+.idxcols {{ column-count: 4; column-gap: 4mm; }}
+.grp {{ break-inside: avoid; font-family: '{fonts.DISPLAY}'; font-size: 14pt;
+        color: #fff; background: #0e3d52; border-radius: 1.5mm;
+        padding: 0.3mm 2mm; margin: 2.5mm 0 1mm; display: inline-block; }}
+.st {{ break-inside: avoid; font-size: 7pt; line-height: 1.18; margin: 0 0 0.3mm; }}
+.st b {{ font-weight: bold; }}
+/* line index: bold number badges (Guía T bondis) */
+.linecols {{ column-count: 2; column-gap: 6mm; }}
+.lrow {{ break-inside: avoid; margin: 0 0 1.5mm; line-height: 1.2; }}
+.lbadge {{ display: inline-block; font-family: '{fonts.DISPLAY}'; font-size: 9.5pt;
+           border: 1pt solid #111; border-radius: 1.5mm; padding: 0.2mm 1.6mm;
+           margin-right: 1.6mm; }}
+.sbadge {{ display: inline-block; min-width: 4mm; text-align: center; font-size: 9pt;
+           font-weight: bold; color: #fff; border-radius: 1.2mm; padding: 0.2mm 1.6mm;
+           margin-right: 1.6mm; }}
+.lcells {{ font-size: 6.5pt; color: #333; }}
 """
 
 
@@ -89,9 +109,10 @@ def cover():
     stripe = "".join(f"<span style='background:{c}'></span>" for c in SUBTE_STRIPE)
     w, h = CFG.page_w_mm, CFG.page_h_mm
     css = f"""
+    {fonts.css_font_face()}
     @page cover {{ size: {w}mm {h}mm; margin: 0; }}
     @page {{ size: {w}mm {h}mm; margin: 14mm 12mm; }}
-    * {{ font-family: 'DejaVu Sans', sans-serif; }}
+    * {{ font-family: '{fonts.BODY}', sans-serif; }}
     .cv {{ page: cover; position: relative; width: {w}mm; height: {h}mm;
            overflow: hidden; color: #fff;
            background: linear-gradient(155deg, #0e3d52 0%, #0a2433 100%); }}
@@ -99,8 +120,8 @@ def cover():
                opacity: 0.10; }}
     .kicker {{ position: absolute; top: 20mm; left: 14mm; font-size: 9pt;
                letter-spacing: 4px; text-transform: uppercase; color: #bfe0e8; }}
-    .title {{ position: absolute; top: 54mm; left: 13mm; font-size: 50pt;
-              font-weight: bold; line-height: 0.92; }}
+    .title {{ position: absolute; top: 52mm; left: 13mm; font-size: 46pt;
+              font-family: '{fonts.DISPLAY}', sans-serif; line-height: 0.95; }}
     .sub {{ position: absolute; top: 96mm; left: 14mm; font-size: 13pt;
             color: #dceef2; }}
     .stripe {{ position: absolute; top: 112mm; left: 14mm; }}
@@ -156,35 +177,69 @@ def overview():
     return _render(body, "overview.pdf")
 
 
+def _first_letter(name: str) -> str:
+    for ch in name:
+        if ch.isalpha():
+            if ch.lower() == "ñ":
+                return "Ñ"
+            return unicodedata.normalize("NFD", ch)[0].upper()
+    return "#"
+
+
 def street_index_pdf():
     data = json.loads((CFG.output_dir / "street_index.json").read_text(encoding="utf-8"))
-    def row(e):
+    parts, cur = [], None
+    for e in data["entries"]:
+        letter = _first_letter(e["name"])
+        if letter != cur:
+            cur = letter
+            parts.append(f"<div class='grp'>{escape(letter)}</div>")
         rng = f" <span class='muted'>{e['range']}</span>" if e.get("range") else ""
-        return (f"<div class='entry'><span class='name'>{escape(e['name'])}</span>{rng} "
-                f"<span class='refs'>{', '.join(e['refs'])}</span></div>")
-    rows = "".join(row(e) for e in data["entries"])
-    body = f"<h2>Índice de calles</h2><div class='cols'>{rows}</div>"
+        parts.append(f"<div class='st'><b>{escape(e['name'])}</b>{rng} "
+                     f"<span class='refs'>{', '.join(e['refs'])}</span></div>")
+    body = f"<h2>Índice de calles</h2><div class='idxcols'>{''.join(parts)}</div>"
     return _render(body, "street_index.pdf")
+
+
+SUBTE_HEX = {"A": "#38b6ff", "B": "#e30613", "C": "#005aab", "D": "#009b3a",
+             "E": "#6d2c91", "H": "#ffd200", "PM-C": "#00a651", "PM-S": "#00a651"}
+
+
+def _ref_key(ref):
+    page, cell = ref.split("-")
+    return (int(page), cell[0], int(cell[1:]))
+
+
+def _line_key(line):
+    return (0, int(line)) if str(line).isdigit() else (1, str(line))
+
+
+def _line_cells(ln):
+    seen = set()
+    for refs in ln["directions"].values():
+        seen.update(refs)
+    return sorted(seen, key=_ref_key)
 
 
 def line_index_pdf():
     data = json.loads((CFG.output_dir / "line_to_cells.json").read_text(encoding="utf-8"))
-    by_mode = {"colectivo": [], "subte": []}
-    for ln in data["lines"]:
-        by_mode.setdefault(ln["mode"], []).append(ln)
-    sections = []
-    titles = {"colectivo": "Colectivos", "subte": "Subte"}
-    for mode in ("colectivo", "subte"):
-        rows = []
-        for ln in by_mode.get(mode, []):
-            for dname, refs in ln["directions"].items():
-                tag = "" if dname == "merged" else f" <span class='muted'>({dname})</span>"
-                rows.append(
-                    f"<div class='entry'><span class='name'>{escape(str(ln['line']))}</span>{tag} "
-                    f"<span class='refs'>{', '.join(refs)}</span></div>")
-        if rows:
-            sections.append(f"<h2>{titles[mode]}</h2><div class='cols2'>{''.join(rows)}</div>")
-    return _render("".join(sections), "line_index.pdf")
+    colect = sorted((l for l in data["lines"] if l["mode"] == "colectivo"),
+                    key=lambda l: _line_key(l["line"]))
+    subte = sorted((l for l in data["lines"] if l["mode"] == "subte"),
+                   key=lambda l: _line_key(l["line"]))
+
+    crows = "".join(
+        f"<div class='lrow'><span class='lbadge'>{escape(str(l['line']))}</span>"
+        f"<span class='lcells'>{', '.join(_line_cells(l))}</span></div>"
+        for l in colect)
+    srows = "".join(
+        f"<div class='lrow'><span class='sbadge' style='background:"
+        f"{SUBTE_HEX.get(str(l['line']).upper(), '#444')}'>{escape(str(l['line']))}</span>"
+        f"<span class='lcells'>{', '.join(_line_cells(l))}</span></div>"
+        for l in subte)
+    body = (f"<h2>Líneas de colectivo</h2><div class='linecols'>{crows}</div>"
+            f"<h2>Subte</h2><div class='linecols'>{srows}</div>")
+    return _render(body, "line_index.pdf")
 
 
 def landmark_index_pdf():
@@ -203,11 +258,8 @@ def landmark_index_pdf():
 
 
 def build_frontmatter() -> list:
-    out = [cover(), overview(), street_index_pdf()]
-    # Disabled for now: the line index (Colectivos/Subte) and the landmark
-    # index (estacion/estadio/hospital/parque/universidad/estacion_subte) are
-    # off. The facing line-grid pages already carry line lookups.
-    # out.append(line_index_pdf())
+    out = [cover(), overview(), street_index_pdf(), line_index_pdf()]
+    # Landmark index stays off (map markers cover it). Re-enable if needed:
     # if (CFG.output_dir / "landmarks.json").exists():
     #     out.append(landmark_index_pdf())
     return out

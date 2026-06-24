@@ -14,6 +14,7 @@ import textwrap
 import matplotlib
 
 matplotlib.use("Agg")
+import fonts  # noqa: E402  registers bundled fonts for matplotlib
 import geopandas as gpd
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
@@ -131,10 +132,15 @@ def _longest_line(geom):
 _HALO = [pe.withStroke(linewidth=0.9, foreground="white")]
 
 
-def _label_streets(ax, st):
-    """Label EVERY street on the page (one bold, halo'd label per name, placed
-    along its longest on-page run). The white halo lifts the name off the
-    street lines; usability requires every street to be named."""
+def _label_streets(ax, st, bounds):
+    """Place street labels with greedy collision avoidance so they stay
+    readable: avenidas first, then the longest streets. A label is skipped if
+    it would overlap one already placed or spill outside the map box, instead
+    of cramming every name and overlapping them."""
+    x0, y0, x1, y1 = bounds
+    sd = CFG.scale_denom / 1000.0  # paper mm -> world metres
+
+    cands = []
     for name, grp in st.groupby("__label"):
         if not name:
             continue
@@ -150,9 +156,26 @@ def _label_streets(ax, st):
             ang -= 180
         elif ang < -90:
             ang += 180
-        ax.text(mid.x, mid.y, str(name), rotation=ang, rotation_mode="anchor",
+        fs = 4.8 if is_av else 3.7
+        half_w = 0.5 * len(str(name)) * 0.55 * fs * 0.3528 * sd
+        half_h = 0.5 * 1.2 * fs * 0.3528 * sd
+        cands.append((is_av, part.length, str(name), mid, ang, fs, half_w, half_h))
+
+    cands.sort(key=lambda c: (0 if c[0] else 1, -c[1]))  # avenidas, then longest
+    placed = []  # axis-aligned (x, y, rx, ry) of the rotated label box
+    for is_av, _seglen, name, mid, ang, fs, hw, hh in cands:
+        c, s = abs(math.cos(math.radians(ang))), abs(math.sin(math.radians(ang)))
+        rx = hw * c + hh * s
+        ry = hw * s + hh * c
+        if mid.x - rx < x0 or mid.x + rx > x1 or mid.y - ry < y0 or mid.y + ry > y1:
+            continue  # would spill outside the box
+        if any(abs(mid.x - px) < (rx + prx) * 0.78 and abs(mid.y - py) < (ry + pry) * 0.78
+               for px, py, prx, pry in placed):
+            continue  # would overlap a placed label
+        placed.append((mid.x, mid.y, rx, ry))
+        ax.text(mid.x, mid.y, name, rotation=ang, rotation_mode="anchor",
                 ha="center", va="center", clip_on=True, zorder=2.6,
-                fontsize=4.8 if is_av else 3.7, weight="bold",
+                fontsize=fs, weight="bold",
                 color="#13386e" if is_av else "#111", path_effects=_HALO)
 
 
@@ -186,7 +209,7 @@ def render_page(page_no, tile, layers):
     if not avs.empty:
         avs.plot(ax=ax, color="#f4dd7a", lw=2.4, zorder=1.6, capstyle="round")
     if not st.empty:
-        _label_streets(ax, st)
+        _label_streets(ax, st, (x0, y0, x1, y1))
 
     # subte lines
     for line, geom in subte_geo.items():
@@ -283,20 +306,22 @@ def render_transit_page(page_no, page_cells, lines_by_ref):
                                   fc=SUBTE_COLORS.get(str(letter).upper(), "#444")))
         if col_nums:
             n = len(col_nums)
-            # Size the numbers to fill the cell: arrange in a near-square block,
-            # then take the largest font that fits both the width and height
-            # budgets of the ~27 mm cell (a bit less when subte badges sit on top).
-            w_items = max(1, round(math.sqrt(0.55 * n)))
-            l_lines = math.ceil(n / w_items)
-            h_mm = 20.0 if subte else 24.0
-            fs_h = h_mm / (l_lines * 1.05) / 0.3528
-            fs_w = 24.0 / (w_items * 1.9) / 0.3528
-            fs = max(3.2, min(10.0, fs_h, fs_w))
-            wrap = max(3, round(w_items * 3.6))
-            txt = textwrap.fill(" ".join(_fmt_colectivo(l) for l in col_nums), width=wrap)
-            yc = CFG.rows - row - 0.5 - (0.16 if subte else 0.0)
-            ax.text(cx, yc, txt, ha="center", va="center", fontsize=fs,
-                    color="#111", linespacing=1.0, clip_on=True)
+            joined = ", ".join(_fmt_colectivo(l) for l in col_nums)
+            # wrap into a near-square block, then size the font from the ACTUAL
+            # wrapped geometry. Top-anchored under any subte badge with a
+            # conservative height budget so even dense cells never spill over.
+            w_items = max(1, round(math.sqrt(n * 0.8)))
+            wrap = max(6, round(w_items * len(joined) / n))
+            txt = textwrap.fill(joined, width=wrap)
+            lines = txt.split("\n")
+            n_lines, max_len = len(lines), max(len(s) for s in lines)
+            avail = 18.5 if subte else 22.5
+            fs_h = avail / (n_lines * 1.3) / 0.3528
+            fs_w = 24.0 / (max_len * 0.55) / 0.3528
+            fs = max(2.8, min(12.0, fs_h, fs_w))
+            top = CFG.rows - row - (0.30 if subte else 0.11)
+            ax.text(cx, top, txt, ha="center", va="top", fontsize=fs,
+                    color="#111", linespacing=1.12, clip_on=True)
 
     # small page number, bottom-right (no "líneas" header)
     fig.text(1 - CFG.margin_right_mm / CFG.page_w_mm,

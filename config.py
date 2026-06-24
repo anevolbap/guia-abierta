@@ -158,6 +158,22 @@ class Config:
     def mm_to_in(self, mm: float) -> float:
         return mm / 25.4
 
+    @property
+    def slug(self) -> str:
+        import re
+        import unicodedata
+        s = unicodedata.normalize("NFKD", self.title).encode("ascii", "ignore").decode()
+        s = re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+        return s or "guia"
+
+    @property
+    def output_pdf(self) -> Path:
+        return self.output_dir / f"{self.slug}.pdf"
+
+    @property
+    def booklet_pdf(self) -> Path:
+        return self.output_dir / f"{self.slug}-booklet.pdf"
+
 
 CFG = Config.load()
 

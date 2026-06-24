@@ -10,7 +10,7 @@ name, see "Data and licenses".)
 
 It is A5 portrait (148 × 210 mm), made to print as a small pocket booklet.
 
-## How it works (the Guía T method)
+## How it works
 
 1. Find your street in the **street index**, get a reference like `12-C4`
    (page 12, cell C4).
@@ -45,7 +45,7 @@ GeoPandas/Fiona/pyproj ship binary wheels, so GDAL needs no separate install.
 ## Run
 
 ```bash
-uv run python main.py            # full pipeline -> output/guiat.pdf
+uv run python main.py            # full pipeline -> output/guia-abierta.pdf
 uv run python main.py --list     # list the 9 stages
 uv run python main.py --only grid
 uv run python main.py --from transit   # a stage and everything after
@@ -67,7 +67,8 @@ data sources). `mvp.enabled: true` scopes to one barrio for a quick test;
 | 6 | `transit_index.py` | `output/{line_to_cells,cell_to_lines}.json` |
 | 7 | `render_pages.py` | `output/pages/NN.pdf` (map) + `NN_lines.pdf` (line grid) |
 | 8 | `frontmatter.py` | cover + street index |
-| 9 | `assemble.py` | `output/guiat.pdf` |
+| 9 | `assemble.py` | `output/guia-abierta.pdf` (reading PDF) |
+| 10 | `impose.py` | `output/guia-abierta-booklet.pdf` (2-up for printing) |
 
 ## Data and licenses
 

@@ -6,8 +6,8 @@ from pypdf import PdfWriter
 from config import CFG
 
 FRONT_ORDER = [
-    "cover.pdf", "overview.pdf", "street_index.pdf",
-    # "line_index.pdf", "landmark_index.pdf",  # disabled for now
+    "cover.pdf", "overview.pdf", "street_index.pdf", "line_index.pdf",
+    # "landmark_index.pdf",  # disabled (map markers cover landmarks)
 ]
 
 
@@ -22,7 +22,7 @@ def assemble() -> str:
     for page_pdf in sorted(CFG.pages_dir.glob("*.pdf")):
         writer.append(str(page_pdf))
         n += 1
-    out = CFG.output_dir / "guiat.pdf"
+    out = CFG.output_pdf
     with open(out, "wb") as f:
         writer.write(f)
     writer.close()

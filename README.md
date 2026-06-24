@@ -11,7 +11,7 @@ comercial; este proyecto utiliza un nombre propio, ver "Datos y licencias".)
 El formato es A5 vertical (148 × 210 mm), pensado para imprimirse como guía de
 bolsillo.
 
-## Cómo se usa (el método Guía T)
+## Cómo se usa
 
 1. Buscar la calle en el **índice de calles** y anotar la referencia, por
    ejemplo `12-C4` (página 12, celda C4).
@@ -49,7 +49,7 @@ necesario instalar GDAL por separado.
 ## Uso
 
 ```bash
-uv run python main.py            # pipeline completo -> output/guiat.pdf
+uv run python main.py            # pipeline completo -> output/guia-abierta.pdf
 uv run python main.py --list     # lista las 9 etapas
 uv run python main.py --only grid
 uv run python main.py --from transit   # una etapa y las siguientes
@@ -71,7 +71,8 @@ para una prueba rápida; con `false` se genera toda la CABA (unas 26 páginas).
 | 6 | `transit_index.py` | `output/{line_to_cells,cell_to_lines}.json` |
 | 7 | `render_pages.py` | `output/pages/NN.pdf` (mapa) y `NN_lines.pdf` (grilla) |
 | 8 | `frontmatter.py` | tapa e índice de calles |
-| 9 | `assemble.py` | `output/guiat.pdf` |
+| 9 | `assemble.py` | `output/guia-abierta.pdf` (PDF para leer) |
+| 10 | `impose.py` | `output/guia-abierta-booklet.pdf` (2-up para imprimir) |
 
 ## Datos y licencias
 

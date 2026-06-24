@@ -5,3 +5,4 @@ data/
 output/
 !output/.gitkeep
 cache/
+DECISIONS.md
