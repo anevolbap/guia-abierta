@@ -21,6 +21,7 @@ import geopandas as gpd
 
 from config import CFG
 from grid import load_grid
+from names import abbreviate
 
 _ALPHABET = "abcdefghijklmnñopqrstuvwxyz0123456789"
 _RANK = {ch: i for i, ch in enumerate(_ALPHABET)}
@@ -91,7 +92,7 @@ def build_street_index() -> dict:
     # name -> {bucket(tuple|None): set(refs)}
     by_name: dict[str, dict] = {}
     for _, r in joined.iterrows():
-        name = str(r[name_col]).strip()
+        name = abbreviate(str(r[name_col]).strip())
         bucket = _bucket(r["__low"]) if have_alt else None
         by_name.setdefault(name, {}).setdefault(bucket, set()).add(r["ref"])
 

@@ -39,6 +39,8 @@ def load_boundary() -> gpd.GeoSeries:
             )
         gdf = sel
     union = unary_union(gdf.geometry.values)
+    if not union.is_valid:
+        union = union.buffer(0)  # heal self-intersections from the barrio union
     return gpd.GeoSeries([union], crs=CFG.crs_work)
 
 

@@ -42,6 +42,8 @@ def fetch_osm_landmarks() -> gpd.GeoDataFrame:
     import osmnx as ox
 
     poly = load_boundary().to_crs(CFG.crs_geo).iloc[0]
+    if not poly.is_valid:
+        poly = poly.buffer(0)  # reprojection can reintroduce self-intersections
     feats = ox.features_from_polygon(poly, _osm_tags())
     feats = feats.reset_index()
     # keep only named features; classify

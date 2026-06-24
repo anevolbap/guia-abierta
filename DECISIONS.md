@@ -6,18 +6,21 @@ before changing the pipeline.
 
 ## Status
 
-Full pipeline runs end to end and produces a real printable A5 PDF. Verified on
-2026-06-23 in MVP mode (barrio Palermo).
+Full pipeline runs end to end and produces a real printable A5 PDF. Verified
+both in MVP mode (barrio Palermo) and in full-CABA mode.
 
-MVP run results:
-- 4 map pages, 140 sub-grid cells (2x2 page grid over Palermo).
-- Maps draw street names (avenidas emphasised) and major landmarks.
-- 658 street index entries (457 split by house-number range).
-- 62 landmarks (hospitals + major: parks, stations, universities, civic,
-  stadium), down from 138 before the reduction.
-- 72 colectivo lines and subte B/D/H crossing the booklet area; 107 cells with
-  transit service.
-- Final `output/guiat.pdf`: 24 pages, page size 148 x 210 mm (A5) confirmed.
+Full CABA run (`mvp.enabled: false`):
+- 29 map pages, 1015 sub-grid cells. Empty río tiles dropped.
+- Maps draw street names (avenidas emphasised, names abbreviated) and major
+  landmarks. Denser labelling than the first pass.
+- 4733 street index entries (2972 split by house-number range).
+- 704 landmarks (hospitals + major: parks, stations, universities, civic).
+- 138 colectivo lines + 8 subte (A-E, H, 2 premetro); 842 cells with service.
+  The coverage gate ([120,180] colectivo, >=6 subte) passes.
+- Final `output/guiat.pdf`: 152 pages (the street index dominates), A5 confirmed.
+
+MVP run (`mvp.enabled: true`, Palermo) for comparison: 4 map pages, 658 street
+entries, 62 landmarks, 24-page booklet.
 
 Round-trip check (the MVP acceptance test) passes: a landmark resolves to a
 cell, and the cell resolves back to the right lines. Examples:
@@ -134,6 +137,27 @@ These were the open questions in `PLAN.md`. Answers from the live downloads:
     Watch-out fixed during build: unnumbered segments yield a pandas `NaN`, and
     `NaN is None` is false, so `_bucket` must treat NaN as unnumbered or every
     segment becomes its own `(nan, nan)` bucket and the index explodes.
+
+## Full CABA + labelling (added in second pass)
+
+13. **Name abbreviation (`names.py`).** Common Spanish title/rank words are
+    compressed (AVENIDA -> AV., GENERAL -> GRAL., DOCTOR -> DR., INGENIERO ->
+    ING., PASAJE -> PJE., and so on) to save space on both the maps and in the
+    index. Matching ignores accents; words already abbreviated in the source
+    are left alone. Applied to map labels (`nom_mapa`) and to index names
+    (`nomoficial`), so the index still sorts by surname (the source uses the
+    "PAZ, GRAL. AV." surname-first form).
+
+14. **Denser street labels.** The minimum on-page run to label a non-avenida
+    street dropped from 170 m to 85 m, and the de-dup gap from 60 m to 38 m, so
+    more streets are named per page. Abbreviation offsets the extra ink.
+
+15. **Boundary geometry healed twice.** The union of all barrios is a valid
+    polygon in the work CRS but reprojecting it to WGS84 reintroduces a
+    self-intersection, which osmnx rejects. `grid.load_boundary` runs
+    `buffer(0)` in the work CRS, and `landmarks.fetch_osm_landmarks` runs
+    `buffer(0)` again on the reprojected polygon before the Overpass call. This
+    only bites in full-CABA mode (a single barrio reprojects clean).
 
 ## Module map
 

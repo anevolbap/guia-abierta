@@ -70,7 +70,7 @@ street_index:
 mvp:
   # When enabled, scope everything to a single barrio and a page cap.
   # Proves the full round-trip cheaply. Turn off for full-CABA runs.
-  enabled: true
+  enabled: false
   barrio: "PALERMO"   # large + iconic: spans several pages, Subte D, big parks
   max_pages: 6
 

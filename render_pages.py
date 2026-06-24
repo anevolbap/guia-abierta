@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 
 from config import CFG
 from grid import load_grid
+from names import abbreviate
 
 SUBTE_COLORS = {
     "A": "#38b6ff", "B": "#e30613", "C": "#005aab", "D": "#009b3a",
@@ -40,7 +41,7 @@ def _street_label_col(gdf):
 def _load_layers():
     streets = gpd.read_file(CFG.data_dir / "calles.geojson").to_crs(CFG.crs_work)
     lab = _street_label_col(streets)
-    streets["__label"] = streets[lab].fillna("") if lab else ""
+    streets["__label"] = (streets[lab].fillna("").map(abbreviate) if lab else "")
     streets["__av"] = (streets["tipo_c"].astype(str).str.upper().str.contains("AVENIDA")
                        if "tipo_c" in streets.columns else False)
     osm = None
@@ -122,7 +123,9 @@ def _longest_line(geom):
 
 
 # min on-page length (m) before a non-avenida street is worth labelling
-_MIN_LABEL_LEN_M = 170
+_MIN_LABEL_LEN_M = 85
+# skip a label if another sits within this many metres (declutter)
+_LABEL_MIN_GAP_M = 38
 
 
 def _label_streets(ax, st):
@@ -147,7 +150,8 @@ def _label_streets(ax, st):
         elif ang < -90:
             ang += 180
         # thin out near-duplicate placements
-        if any(abs(mid.x - x) < 60 and abs(mid.y - y) < 60 for x, y in placed):
+        if any(abs(mid.x - x) < _LABEL_MIN_GAP_M and abs(mid.y - y) < _LABEL_MIN_GAP_M
+               for x, y in placed):
             continue
         placed.append((mid.x, mid.y))
         ax.text(mid.x, mid.y, str(name), rotation=ang, rotation_mode="anchor",
