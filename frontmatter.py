@@ -205,6 +205,36 @@ SUBTE_HEX = {"A": "#38b6ff", "B": "#e30613", "C": "#005aab", "D": "#009b3a",
              "E": "#6d2c91", "H": "#ffd200", "PM-C": "#00a651", "PM-S": "#00a651"}
 
 
+def _color_overrides() -> dict:
+    """Optional real liveries: data/line_colors.csv with rows `line,#hex`."""
+    import csv
+    p = CFG.data_dir / "line_colors.csv"
+    out = {}
+    if p.exists():
+        for row in csv.reader(p.read_text(encoding="utf-8").splitlines()):
+            if len(row) >= 2 and row[1].strip().startswith("#"):
+                out[row[0].strip()] = row[1].strip()
+    return out
+
+
+def _line_bg(line: str, overrides: dict) -> str:
+    if str(line) in overrides:
+        return overrides[str(line)]
+    import colorsys
+    import zlib
+    s = str(line)
+    seed = int(s) if s.isdigit() else zlib.crc32(s.encode())
+    h = ((seed * 137) % 360) / 360.0   # golden-ish spread for distinct hues
+    r, g, b = colorsys.hls_to_rgb(h, 0.52, 0.55)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _text_on(bg: str) -> str:
+    r, g, b = int(bg[1:3], 16), int(bg[3:5], 16), int(bg[5:7], 16)
+    lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return "#111" if lum > 0.62 else "#fff"
+
+
 def _ref_key(ref):
     page, cell = ref.split("-")
     return (int(page), cell[0], int(cell[1:]))
@@ -237,8 +267,13 @@ def line_index_pdf():
     subte = sorted((l for l in data["lines"] if l["mode"] == "subte"),
                    key=lambda l: _line_key(l["line"]))
 
+    ov = _color_overrides()
+    def cbadge(line):
+        bg = _line_bg(line, ov)
+        return f"background:{bg};color:{_text_on(bg)};border-color:rgba(0,0,0,.35)"
     crows = "".join(
-        f"<div class='lrow'><span class='lbadge'>{escape(str(l['line']))}</span>"
+        f"<div class='lrow'><span class='lbadge' style='{cbadge(l['line'])}'>"
+        f"{escape(str(l['line']))}</span>"
         f"<span class='lcells'>{escape(_line_route(l))}</span></div>"
         for l in colect)
     srows = "".join(
