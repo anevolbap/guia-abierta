@@ -276,27 +276,25 @@ def render_transit_page(page_no, page_cells, lines_by_ref):
                        key=_line_key)
         cx = col + 0.5
         if subte:
-            step = 0.2
+            step = 0.26
             x0 = cx - (len(subte) - 1) * step / 2
-            y = CFG.rows - row - 0.22
+            y = CFG.rows - row - 0.2
             for i, letter in enumerate(subte):
-                ax.text(x0 + i * step, y, str(letter), fontsize=3.6, ha="center",
-                        va="center", color="white", clip_on=True,
-                        bbox=dict(boxstyle="square,pad=0.15", ec="none",
+                ax.text(x0 + i * step, y, str(letter), fontsize=5.0, ha="center",
+                        va="center", color="white", clip_on=True, weight="bold",
+                        bbox=dict(boxstyle="square,pad=0.2", ec="none",
                                   fc=SUBTE_COLORS.get(str(letter).upper(), "#444")))
         if col_nums:
-            fs = 3.4 if len(col_nums) <= 10 else (2.9 if len(col_nums) <= 16 else 2.5)
-            txt = textwrap.fill(" ".join(_fmt_colectivo(l) for l in col_nums), width=12)
-            yc = CFG.rows - row - 0.5 - (0.14 if subte else 0.0)
+            n = len(col_nums)
+            fs = 5.2 if n <= 10 else (4.3 if n <= 18 else 3.5)
+            wrap = 11 if fs >= 5 else (13 if fs >= 4 else 15)
+            txt = textwrap.fill(" ".join(_fmt_colectivo(l) for l in col_nums), width=wrap)
+            yc = CFG.rows - row - 0.5 - (0.16 if subte else 0.0)
             ax.text(cx, yc, txt, ha="center", va="center", fontsize=fs,
-                    color="#111", linespacing=0.9, clip_on=True)
+                    color="#111", linespacing=1.0, clip_on=True)
 
     fig.text(0.5, 1 - CFG.margin_top_mm / CFG.page_h_mm / 2, f"{page_no} · líneas",
              ha="center", va="center", fontsize=10, weight="bold")
-    fig.text(0.5, CFG.margin_bottom_mm / CFG.page_h_mm / 2,
-             f"Líneas por celda (misma grilla que el mapa pág. {page_no}). "
-             "Número = colectivo · letra de color = subte.",
-             ha="center", va="center", fontsize=4)
     out = CFG.pages_dir / f"{page_no:02d}_lines.pdf"
     fig.savefig(out)
     plt.close(fig)

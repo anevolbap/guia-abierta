@@ -93,8 +93,7 @@ def cover():
             grilla. Leé la celda C4 y vas a ver las líneas que pasan por ahí.
             Los números son colectivos; la letra de color es el subte.</li>
       </ol>
-      <p class='muted'>Cada mapa va seguido de su grilla de líneas. El índice de
-      líneas (al final) hace el camino inverso: de una línea a sus celdas.</p>
+      <p class='muted'>Cada mapa va seguido de su grilla de líneas.</p>
     </div>"""
     return _render(body, "cover.pdf")
 
@@ -152,9 +151,13 @@ def landmark_index_pdf():
 
 
 def build_frontmatter() -> list:
-    out = [cover(), overview(), street_index_pdf(), line_index_pdf()]
-    if (CFG.output_dir / "landmarks.json").exists():
-        out.append(landmark_index_pdf())
+    out = [cover(), overview(), street_index_pdf()]
+    # Disabled for now: the line index (Colectivos/Subte) and the landmark
+    # index (estacion/estadio/hospital/parque/universidad/estacion_subte) are
+    # off. The facing line-grid pages already carry line lookups.
+    # out.append(line_index_pdf())
+    # if (CFG.output_dir / "landmarks.json").exists():
+    #     out.append(landmark_index_pdf())
     return out
 
 

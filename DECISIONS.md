@@ -199,6 +199,20 @@ These were the open questions in `PLAN.md`. Answers from the live downloads:
     axes clips; only the avenida/label subset is exact-clipped. Before this the
     maps drew grey street lines on white, which did not read as a Guía T.
 
+## Trim + readability (fifth pass)
+
+19. **Line index and landmark index disabled.** The booklet is now cover +
+    "cómo usar" + page overview + street index + (map / line-grid) pairs. The
+    `line_index_pdf` and `landmark_index_pdf` calls are commented out in
+    `build_frontmatter` and dropped from `assemble.FRONT_ORDER` (easy to flip
+    back). `landmarks.json` is still built; map markers stay. Booklet dropped
+    from 178 to 143 pages.
+
+20. **Bigger bus numbers, no per-page footer.** Line-grid cell numbers went
+    from ~3pt to 5.2pt (auto-shrinking to 4.3 / 3.5 as a cell gets denser), and
+    subte badges to 5pt bold. The per-page "Líneas por celda..." footer was
+    removed (the cover's "cómo usar" already explains it).
+
 ## Module map
 
 | Module | Role | Key output |

@@ -7,7 +7,7 @@ from config import CFG
 
 FRONT_ORDER = [
     "cover.pdf", "overview.pdf", "street_index.pdf",
-    "line_index.pdf", "landmark_index.pdf",
+    # "line_index.pdf", "landmark_index.pdf",  # disabled for now
 ]
 
 
