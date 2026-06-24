@@ -6,7 +6,7 @@ Open-source, printable **A5 PDF booklet** for getting around Buenos Aires by
 colectivo (bus) and subte (metro), in the style of the classic Guía T. Built
 from open data, offline-final: no QR codes, no live lookups, the booklet is
 self-sufficient. ("Guía T" is a commercial name; this project uses an original
-name, see `DATA.md`.)
+name, see "Data and licenses".)
 
 It is A5 portrait (148 × 210 mm), made to print as a small pocket booklet.
 
