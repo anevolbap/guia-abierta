@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  ::selection { background: #ED5B2A; color: #fff; }
+</style>
+</helmet>
+
+<div style="min-height:100vh; background:#2B2A27; font-family:'Public Sans',sans-serif; color:#1C1A15; padding:40px 24px 64px; display:flex; flex-direction:column; align-items:center;">
+
+  <div style="width:100%; max-width:952px; display:flex; align-items:flex-end; justify-content:space-between; padding:0 4px 22px; color:#EDE7D8;">
+    <div style="display:flex; flex-direction:column; gap:3px;">
+      <div style="font-family:'Archivo Black'; font-size:19px; letter-spacing:-.5px; line-height:1;">Guía Abierta</div>
+      <div style="font-size:11px; color:#9C968A; letter-spacing:.3px;">Recreación de estilo · vista de muestra</div>
+    </div>
+    <div style="font-size:10.5px; color:#8C877C; text-align:right; line-height:1.5; max-width:320px;">Cubierta · Cómo usar · Índice de calles · Spread de mapa (03 · Belgrano)</div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; align-items:center; gap:40px;">
+
+    
+    <div style="position:relative; width:460px; height:720px; background:#17150F; color:#F1ECDF; box-shadow:0 22px 60px rgba(0,0,0,.5); overflow:hidden; flex:none; display:flex; flex-direction:column; justify-content:space-between; padding:38px 34px 32px;">
+      <div style="position:absolute; inset:0; background-image:repeating-linear-gradient(90deg, rgba(237,91,42,.10) 0 1px, transparent 1px 20%), repeating-linear-gradient(0deg, rgba(237,91,42,.08) 0 1px, transparent 1px 14.285%); pointer-events:none;"></div>
+
+      <div style="position:relative; display:flex; align-items:center; justify-content:space-between;">
+        <div style="font-size:11px; font-weight:700; letter-spacing:2.5px; color:#ED5B2A;">EDICIÓN ABIERTA</div>
+        <div style="font-size:10px; letter-spacing:1.5px; color:#7C766A;">v2026·06</div>
+      </div>
+
+      <div style="position:relative;">
+        <div style="font-size:13px; font-weight:600; letter-spacing:.5px; color:#A49C8A; margin-bottom:14px;">Colectivos + Subte · Buenos Aires</div>
+        <div style="font-family:'Archivo Black'; font-size:88px; line-height:.84; letter-spacing:-3px; color:#F1ECDF;">Guía<br>Abierta</div>
+        <div style="width:60px; height:5px; background:#ED5B2A; margin:24px 0 18px;"></div>
+        <div style="font-size:15px; line-height:1.45; color:#C9C2B1; max-width:300px;">El mapa de bolsillo de la ciudad. Buscás la calle, leés la celda, encontrás la línea.</div>
+      </div>
+
+      <div style="position:relative; display:flex; flex-direction:column; gap:18px;">
+        <div>
+          <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; color:#7C766A; margin-bottom:8px;">LÍNEAS DE SUBTE</div>
+          <div style="display:flex; gap:7px;">
+            <div style="width:34px; height:34px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Archivo Black'; font-size:16px; color:#fff; background:#34B6E4;">A</div>
+            <div style="width:34px; height:34px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Archivo Black'; font-size:16px; color:#fff; background:#E2231A;">B</div>
+            <div style="width:34px; height:34px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Archivo Black'; font-size:16px; color:#fff; background:#163F8C;">C</div>
+            <div style="width:34px; height:34px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Archivo Black'; font-size:16px; color:#fff; background:#00925A;">D</div>
+            <div style="width:34px; height:34px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Archivo Black'; font-size:16px; color:#fff; background:#6C3A93;">E</div>
+            <div style="width:34px; height:34px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Archivo Black'; font-size:16px; color:#1C1A15; background:#F4C500;">H</div>
+          </div>
+        </div>
+        <div style="border-top:1px solid #2E2A20; padding-top:14px; display:flex; justify-content:space-between; align-items:flex-end; gap:16px;">
+          <div style="font-size:9.5px; line-height:1.6; color:#7C766A;">
+            <sc-for list="{{ metaLines }}" as="m" hint-placeholder-count="4">
+              <div>{{ m }}</div>
+            </sc-for>
+          </div>
+          <div style="font-size:9.5px; color:#A49C8A; text-align:right; line-height:1.5; white-space:nowrap;">Escala 1:20 000<br>EPSG:9498</div>
+        </div>
+      </div>
+    </div>
+
+    
+    <div style="position:relative; width:460px; height:720px; background:#F5F2EA; box-shadow:0 22px 60px rgba(0,0,0,.5); overflow:hidden; flex:none; display:flex; flex-direction:column; padding:40px 38px 30px;">
+      <div style="font-size:12px; font-weight:700; letter-spacing:1.5px; color:#ED5B2A; margin-bottom:6px;">GUÍA ABIERTA</div>
+      <div style="font-family:'Archivo Black'; font-size:40px; letter-spacing:-1.5px; line-height:1; color:#1C1A15;">Cómo usar</div>
+      <div style="width:100%; height:1px; background:#DAD3C4; margin:24px 0 26px;"></div>
+
+      <div style="display:flex; flex-direction:column; gap:24px;">
+        <sc-for list="{{ steps }}" as="step" hint-placeholder-count="3">
+          <div style="display:flex; gap:16px; align-items:flex-start;">
+            <div style="flex:none; width:30px; height:30px; background:#17150F; color:#F1ECDF; font-family:'Archivo Black'; font-size:15px; display:flex; align-items:center; justify-content:center;">{{ step.n }}</div>
+            <div style="flex:1;">
+              <div style="font-size:16px; font-weight:700; color:#1C1A15; margin-bottom:4px;">{{ step.t }}</div>
+              <div style="font-size:13.5px; line-height:1.5; color:#5A554A;">{{ step.d }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="margin-top:auto; background:#EDE7D8; border:1px solid #DED7C6; padding:20px; display:flex; gap:22px; align-items:center;">
+        <div style="flex:none;">
+          <div style="display:flex; gap:0; margin-bottom:4px; padding-left:16px;">
+            <div style="width:22px; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">A</div>
+            <div style="width:22px; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">B</div>
+            <div style="width:22px; text-align:center; font-size:9px; font-weight:700; color:#ED5B2A;">C</div>
+            <div style="width:22px; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">D</div>
+            <div style="width:22px; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">E</div>
+          </div>
+          <div style="display:flex;">
+            <div style="display:flex; flex-direction:column; justify-content:space-between; padding-right:4px;">
+              <div style="height:22px; line-height:22px; font-size:9px; font-weight:700; color:#8C877C; text-align:right; width:12px;">1</div>
+              <div style="height:22px; line-height:22px; font-size:9px; font-weight:700; color:#8C877C; text-align:right; width:12px;">2</div>
+              <div style="height:22px; line-height:22px; font-size:9px; font-weight:700; color:#8C877C; text-align:right; width:12px;">3</div>
+              <div style="height:22px; line-height:22px; font-size:9px; font-weight:700; color:#ED5B2A; text-align:right; width:12px;">4</div>
+              <div style="height:22px; line-height:22px; font-size:9px; font-weight:700; color:#8C877C; text-align:right; width:12px;">5</div>
+              <div style="height:22px; line-height:22px; font-size:9px; font-weight:700; color:#8C877C; text-align:right; width:12px;">6</div>
+              <div style="height:22px; line-height:22px; font-size:9px; font-weight:700; color:#8C877C; text-align:right; width:12px;">7</div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(5,22px); grid-template-rows:repeat(7,22px); border:1px solid #C7BEA9; background-image:linear-gradient(#C7BEA9 1px,transparent 1px),linear-gradient(90deg,#C7BEA9 1px,transparent 1px); background-size:22px 22px;">
+              <div style="grid-column:3; grid-row:4; background:#ED5B2A; opacity:.85;"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px; font-weight:700; color:#1C1A15; margin-bottom:4px;">Referencia <span style="color:#ED5B2A;">12-C4</span></div>
+          <div style="font-size:12.5px; line-height:1.45; color:#5A554A;">Página 12, columna C, fila 4. La misma celda existe en el mapa y en la grilla de líneas.</div>
+        </div>
+      </div>
+    </div>
+
+    
+    <div style="position:relative; width:460px; height:720px; background:#F5F2EA; box-shadow:0 22px 60px rgba(0,0,0,.5); overflow:hidden; flex:none; display:flex; flex-direction:column; padding:36px 34px 26px;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:4px;">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:1.5px; color:#ED5B2A; margin-bottom:4px;">ÍNDICE DE CALLES</div>
+          <div style="font-size:11px; color:#8C877C;">calle · página-celda</div>
+        </div>
+        <div style="font-family:'Archivo Black'; font-size:54px; line-height:.8; color:#17150F;">A</div>
+      </div>
+      <div style="width:100%; height:1px; background:#DAD3C4; margin:14px 0 16px;"></div>
+
+      <div style="flex:1; column-count:2; column-gap:26px; column-rule:1px solid #E4DDCE; overflow:hidden;">
+        <sc-for list="{{ indexEntries }}" as="e" hint-placeholder-count="30">
+          <div style="break-inside:avoid; margin-bottom:7px; line-height:1.25;">
+            <span style="font-size:11.5px; font-weight:600; color:#1C1A15;">{{ e.name }}</span>
+            <span style="display:inline-flex; flex-wrap:wrap; gap:5px; margin-left:5px; vertical-align:baseline;">
+              <sc-for list="{{ e.refs }}" as="r" hint-placeholder-count="3">
+                <span style="font-size:10.5px; white-space:nowrap;"><span style="font-weight:700; color:#ED5B2A;">{{ r.p }}</span><span style="color:#9A9384;">-{{ r.c }}</span></span>
+              </sc-for>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid #DAD3C4;">
+        <div style="font-size:9.5px; color:#9A9384;">Callejero GCBA · unión espacial con la grilla de celdas</div>
+        <div style="font-family:'Archivo Black'; font-size:13px; color:#17150F;">04</div>
+      </div>
+    </div>
+
+    
+    <div style="display:flex; flex:none; box-shadow:0 22px 60px rgba(0,0,0,.5);">
+
+      
+      <div style="position:relative; width:460px; height:720px; background:#F5F2EA; overflow:hidden; display:flex; flex-direction:column; padding:16px 14px 12px;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div style="font-family:'Archivo Black'; font-size:30px; line-height:.8; color:#ED5B2A;">03</div>
+            <div>
+              <div style="font-size:15px; font-weight:700; color:#1C1A15; line-height:1;">Belgrano · Colegiales</div>
+              <div style="font-size:10.5px; color:#8C877C; margin-top:3px;">Mapa de calles</div>
+            </div>
+          </div>
+          <div style="font-size:9.5px; color:#8C877C; text-align:right; line-height:1.4;">1:20 000<br>N ↑</div>
+        </div>
+
+        <div style="flex:1; display:flex; flex-direction:column;">
+          <div style="display:flex; height:15px;">
+            <div style="width:15px;"></div>
+            <div style="flex:1; display:flex;">
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">A</div>
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">B</div>
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">C</div>
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">D</div>
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">E</div>
+            </div>
+          </div>
+          <div style="flex:1; display:flex;">
+            <div style="width:15px; display:flex; flex-direction:column;">
+              <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#8C877C;">1</div>
+              <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#8C877C;">2</div>
+              <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#8C877C;">3</div>
+              <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#8C877C;">4</div>
+              <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#8C877C;">5</div>
+              <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#8C877C;">6</div>
+              <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#8C877C;">7</div>
+            </div>
+            
+            <div style="flex:1; position:relative; background:#F3ECDD; border:1.5px solid #1C1A15; overflow:hidden;">
+              <div style="position:absolute; inset:0; background-image:repeating-linear-gradient(0deg,#E9DDC2 0 12px,transparent 12px 16px),repeating-linear-gradient(90deg,#E9DDC2 0 12px,transparent 12px 16px);"></div>
+              <div style="position:absolute; left:0; right:0; top:35%; height:6px; background:#F6EAC4; border-top:1px solid #E0CE96; border-bottom:1px solid #E0CE96;"></div>
+              <div style="position:absolute; top:0; bottom:0; left:30%; width:6px; background:#F6EAC4; border-left:1px solid #E0CE96; border-right:1px solid #E0CE96;"></div>
+              <div style="position:absolute; top:-12%; bottom:-12%; left:62%; width:7px; background:#F6EAC4; border-left:1px solid #E0CE96; border-right:1px solid #E0CE96; transform:rotate(20deg); transform-origin:center;"></div>
+              <div style="position:absolute; left:44%; top:55%; width:17%; height:15%; background:rgba(0,146,90,.20); border:1px solid rgba(0,146,90,.45);"></div>
+              <div style="position:absolute; left:45%; top:60%; font-size:7px; font-weight:600; color:#0A6B45;">Barrancas</div>
+
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;">
+                <polyline points="90,21.4 70,35.7 50,50 50,64.3 30,78.6" fill="none" stroke="#00925A" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></polyline>
+              </svg>
+              <div style="position:absolute; left:70%; top:35.7%; transform:translate(-50%,-50%); width:9px; height:9px; border-radius:50%; background:#fff; border:2px solid #00925A;"></div>
+              <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:9px; height:9px; border-radius:50%; background:#fff; border:2px solid #00925A;"></div>
+              <div style="position:absolute; left:50%; top:64.3%; transform:translate(-50%,-50%); width:9px; height:9px; border-radius:50%; background:#fff; border:2px solid #00925A;"></div>
+
+              <div style="position:absolute; left:72%; top:30%; font-size:6.5px; font-weight:700; color:#0A6B45;">Juramento</div>
+              <div style="position:absolute; left:53%; top:46%; font-size:6.5px; font-weight:700; color:#0A6B45;">J. Hernández</div>
+              <div style="position:absolute; left:52%; top:66.5%; font-size:6.5px; font-weight:700; color:#0A6B45;">Congreso T.</div>
+
+              <div style="position:absolute; left:31%; top:5%; font-size:6.5px; font-weight:600; color:#6E6552; transform:rotate(90deg); transform-origin:left top; white-space:nowrap;">AV. CABILDO</div>
+              <div style="position:absolute; left:3%; top:32%; font-size:6.5px; font-weight:600; color:#6E6552;">JURAMENTO</div>
+              <div style="position:absolute; left:64%; top:8%; font-size:6.5px; font-weight:600; color:#6E6552; transform:rotate(20deg); white-space:nowrap;">AV. DEL LIBERTADOR</div>
+
+              <div style="position:absolute; inset:0; background-image:repeating-linear-gradient(90deg, rgba(28,26,21,.20) 0 1px, transparent 1px 20%),repeating-linear-gradient(0deg, rgba(28,26,21,.20) 0 1px, transparent 1px 14.285%); pointer-events:none;"></div>
+
+              <div style="position:absolute; right:5px; top:5px; width:15px; height:15px; border-radius:4px; background:#00925A; color:#fff; font-family:'Archivo Black'; font-size:10px; display:flex; align-items:center; justify-content:center;">D</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:9px; color:#9A9384;">
+          <div>Manzanas + callejero GCBA · subte GTFS · OSM</div>
+          <div style="font-family:'Archivo Black'; font-size:12px; color:#17150F;">05</div>
+        </div>
+      </div>
+
+      <div style="width:2px; background:linear-gradient(90deg,#0000002e,#00000010,#0000002e);"></div>
+
+      
+      <div style="position:relative; width:460px; height:720px; background:#F5F2EA; overflow:hidden; display:flex; flex-direction:column; padding:16px 14px 12px;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:10px;">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <div style="font-family:'Archivo Black'; font-size:30px; line-height:.8; color:#ED5B2A;">03</div>
+            <div>
+              <div style="font-size:15px; font-weight:700; color:#1C1A15; line-height:1;">Líneas por celda</div>
+              <div style="font-size:10.5px; color:#8C877C; margin-top:3px;">colectivos · subte</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:7px;">
+            <div style="font-size:9px; color:#8C877C;">subte</div>
+            <div style="width:14px; height:14px; border-radius:3px; background:#00925A; color:#fff; font-family:'Archivo Black'; font-size:9px; display:flex; align-items:center; justify-content:center;">D</div>
+          </div>
+        </div>
+
+        <div style="flex:1; display:flex; flex-direction:column;">
+          <div style="display:flex; height:15px;">
+            <div style="width:15px;"></div>
+            <div style="flex:1; display:flex;">
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">A</div>
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">B</div>
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">C</div>
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">D</div>
+              <div style="flex:1; text-align:center; font-size:9px; font-weight:700; color:#8C877C;">E</div>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; border:1.5px solid #1C1A15;">
+            <div style="width:15px; display:flex; flex-direction:column; border-right:1px solid #1C1A15;">
+              <sc-for list="{{ gridRows }}" as="row" hint-placeholder-count="7">
+                <div style="flex:1; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#8C877C; border-bottom:1px solid #C9C0AD;">{{ row.num }}</div>
+              </sc-for>
+            </div>
+            <div style="flex:1; display:flex; flex-direction:column;">
+              <sc-for list="{{ gridRows }}" as="row" hint-placeholder-count="7">
+                <div style="flex:1; display:flex; border-bottom:1px solid #C9C0AD;">
+                  <sc-for list="{{ row.cells }}" as="cell" hint-placeholder-count="5">
+                    <div style="flex:1; position:relative; border-right:1px solid #C9C0AD; padding:3px 4px; overflow:hidden;">
+                      <div style="font-size:8px; line-height:1.28; color:#2A271F; letter-spacing:-.2px; font-variant-numeric:tabular-nums; padding-right:9px;">{{ cell.lines }}</div>
+                      <sc-if value="{{ cell.subte }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute; right:3px; bottom:3px; width:13px; height:13px; border-radius:3px; background:#00925A; color:#fff; font-family:'Archivo Black'; font-size:8.5px; display:flex; align-items:center; justify-content:center;">{{ cell.subte }}</div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:9px; color:#9A9384;">
+          <div>Números = colectivo · letra de color = subte</div>
+          <div style="font-family:'Archivo Black'; font-size:12px; color:#17150F;">06</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="width:100%; max-width:952px; margin-top:30px; padding-top:16px; border-top:1px solid #3A3934; color:#7C776C; font-size:10.5px; display:flex; justify-content:space-between;">
+    <div>Guía Abierta · recreación de estilo en HTML</div>
+    <div>Hecho con software libre · MIT</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const S = [
+      "15, 19, 21, 28, 57, 59, 60, 68, 71, 117, 130, 133, 151, 152, 161, 168, 184, 194",
+      "19, 151",
+      "19, 29, 130, 151",
+      "19, 29, 67, 76, 130",
+      "19, 41, 67, 76, 107, 169",
+      "19, 41, 76, 107, 114, 133, 169",
+      "19, 76, 93, 107, 114, 133, 140",
+      "57, 59, 60, 68, 130, 133, 152, 161, 168, 184, 194",
+      "57, 59, 60, 68, 133, 152, 161, 168, 184, 194",
+      "29, 57, 59, 60, 68, 130, 133, 151, 152, 161, 168, 184, 194",
+      "19, 41, 151, 169",
+      "19, 41, 67, 76, 107, 114, 133, 169",
+      "19, 76, 107, 114, 133",
+      "19, 76, 113, 133",
+      "15, 28, 29, 117, 130",
+      "29, 130",
+      "29, 57, 59, 60, 68, 130, 133, 152, 161, 168, 184, 194",
+      "67, 107, 114, 133, 151",
+      "29, 41, 57, 59, 60, 68, 133, 151, 152, 161, 168, 169, 184, 194",
+      "19, 67, 113, 151",
+      "19, 44, 65, 76, 80, 113",
+      "15, 28, 29, 57, 59, 130, 152, 194",
+      "15, 28, 29, 130",
+      "29, 41, 57, 59, 60, 68, 107, 114, 133, 152, 161, 168, 184, 194",
+      "29, 41, 44, 57, 59, 60, 63, 65, 67, 68, 80, 107, 113, 114, 133, 152, 161, 168, 184, 194",
+      "44, 65, 80, 113, 151, 168, 184",
+      "44, 65, 80, 113, 151, 168, 184",
+      "28, 34, 37, 42, 57, 59, 107, 152, 160, 166, 194",
+      "15, 28, 29, 42, 107, 130",
+      "15, 29, 107, 130",
+      "15, 29, 42, 44, 60, 63, 65, 80, 107, 113, 114, 130",
+      "15, 29, 42, 44, 55, 60, 63, 64, 65, 67, 80, 113, 114, 118",
+      "41, 44, 57, 59, 63, 65, 67, 68, 80, 152, 161, 168, 184, 194",
+      "15, 29, 42, 107, 130",
+      "90, 93, 107, 114, 127, 133, 140, 176"
+    ];
+    const subteCells = { E2: 'D', D3: 'D', C4: 'D', C5: 'D', B6: 'D' };
+    const cols = ['A', 'B', 'C', 'D', 'E'];
+    const gridRows = [];
+    let k = 0;
+    for (let r = 1; r <= 7; r++) {
+      const cells = cols.map(c => {
+        const cell = { col: c, lines: S[k] || '', subte: subteCells[c + r] || '' };
+        k++;
+        return cell;
+      });
+      gridRows.push({ num: String(r), cells });
+    }
+
+    const raw = [
+      { name: 'Abdala, Germán', refs: '17-D5' },
+      { name: 'Acassuso 5000–6000', refs: '13-A7, 13-B7, 19-E1, 20-A1' },
+      { name: 'Acassuso 6000–7000', refs: '19-D2, 19-D3, 19-E1, 19-E2' },
+      { name: 'Acassuso 7000–8000', refs: '19-C3, 19-C4, 19-D3, 19-D4' },
+      { name: 'Acceso Maipú', refs: '11-D2, 11-D3' },
+      { name: 'Acceso Norte – Panamericana', refs: '2-C2, 2-D2' },
+      { name: 'Acceso Wilson', refs: '11-C2' },
+      { name: 'Acevedo 0–1000', refs: '9-A6, 9-B5, 9-B6, 9-C5' },
+      { name: 'Acevedo 1000–2000', refs: '9-C4, 9-C5' },
+      { name: 'Acevedo, Eduardo', refs: '9-C7, 15-C1, 15-D1, 15-D2' },
+      { name: 'Acha, Mariano, Gral. 0–1000', refs: '2-C2, 2-C3, 2-C4, 8-B3' },
+      { name: 'Acha, Mariano, Gral. 1000–2000', refs: '8-A1, 8-B1, 8-B2, 8-B3' },
+      { name: 'Achával', refs: '14-E4, 14-E5, 15-A5, 15-A6' },
+      { name: 'Achega 2000–3000', refs: '7-B1' },
+      { name: 'Achira', refs: '2-C5, 2-D5' },
+      { name: 'Aconcagua', refs: '20-A1, 20-A2, 20-B1' },
+      { name: 'Acoyte 0–1000', refs: '9-B7, 15-B1, 15-B2' },
+      { name: 'Acoyte Av.', refs: '15-B1, 15-B2, 15-C2, 15-C3' },
+      { name: 'Acuña de Figueroa, F.', refs: '9-E6, 9-E7, 15-E1' },
+      { name: 'Aerolíneas Argentinas', refs: '5-A4' },
+      { name: 'Agote, Luis, Dr.', refs: '10-D3, 10-E3' },
+      { name: 'Agrelo 3000–4000', refs: '15-E3, 16-A3, 16-B3' },
+      { name: 'Agüero 0–1000', refs: '10-B6, 10-B7, 16-B1' },
+      { name: 'Agüero 1000–2000', refs: '10-B4, 10-B5, 10-B6, 10-C4' },
+      { name: 'Aguilar', refs: '3-E7, 4-A6, 4-A7' },
+      { name: 'Aguirre 0–1000', refs: '9-B4, 9-B5, 9-C5, 9-C6' },
+      { name: 'Aguirre 1000–2000', refs: '9-A3, 9-A4, 9-B4, 9-B5' },
+      { name: 'Aizpurúa 2000–3000', refs: '7-B1, 7-C1, 7-C2' },
+      { name: 'Alagón', refs: '15-E7, 22-E1' },
+      { name: 'Alberti 0–1000', refs: '16-C2, 16-C3' }
+    ];
+    const indexEntries = raw.map(e => ({
+      name: e.name,
+      refs: e.refs.split(', ').map(t => {
+        const i = t.indexOf('-');
+        return { p: t.slice(0, i), c: t.slice(i + 1) };
+      })
+    }));
+
+    const steps = [
+      { n: '1', t: 'Buscá la calle', d: 'Encontrá tu calle en el índice y anotá la referencia. Por ejemplo 12-C4 — página 12, celda C4.' },
+      { n: '2', t: 'Ubicá la celda en el mapa', d: 'Andá a la página de mapa 12 y ubicá la celda C4: las letras (A–E) van arriba y los números (1–7) al costado.' },
+      { n: '3', t: 'Leé las líneas al lado', d: 'En la página de al lado, la grilla de líneas usa la misma cuadrícula. La celda C4 muestra qué pasa: los números son colectivos; la letra de color es el subte.' }
+    ];
+
+    const subteKey = [
+      { l: 'A', c: '#34B6E4' },
+      { l: 'B', c: '#E2231A' },
+      { l: 'C', c: '#163F8C' },
+      { l: 'D', c: '#00925A' },
+      { l: 'E', c: '#6C3A93' },
+      { l: 'H', c: '#F4C500' }
+    ];
+
+    const metaLines = [
+      'Recorridos AMBA · Min. Transporte (CC-BY 4.0)',
+      'Callejero, subte y manzanas · GCBA',
+      'Puntos de interés · © OpenStreetMap (ODbL)',
+      'Hecho con software libre · Licencia MIT'
+    ];
+
+    return { gridRows, indexEntries, steps, subteKey, metaLines };
+  }
+}
+</script>
+</body>
+</html>

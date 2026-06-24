@@ -33,5 +33,6 @@ build-backend = "hatchling.build"
 include = [
     "config.py", "fetch.py", "grid.py", "street_index.py", "landmarks.py",
     "names.py", "transit_index.py", "render_pages.py", "frontmatter.py",
-    "assemble.py", "impose.py", "fonts.py", "main.py", "assets/fonts/*",
+    "assemble.py", "impose.py", "fonts.py", "mpl_style.py", "main.py",
+    "assets/fonts/*",
 ]

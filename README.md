@@ -2,14 +2,14 @@
 
 Español · [English version](README.en.md)
 
-Folleto **A5 imprimible** (PDF), de código abierto, para desplazarse por Buenos
+Folleto **imprimible de bolsillo** (PDF), de código abierto, para desplazarse por Buenos
 Aires en colectivo y subte, al estilo de la clásica Guía T. Se genera a partir
 de datos abiertos y funciona de manera completamente offline: no incluye códigos
 QR ni consultas en línea, el folleto es autosuficiente. ("Guía T" es un nombre
 comercial; este proyecto utiliza un nombre propio, ver "Datos y licencias".)
 
-El formato es A5 vertical (148 × 210 mm), pensado para imprimirse como guía de
-bolsillo.
+El formato es vertical, tamaño bolsillo (121,7 × 190,5 mm), pensado para
+imprimirse y plegarse como cuadernillo.
 
 ## Cómo se usa
 

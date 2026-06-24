@@ -9,9 +9,10 @@ crs:
   geographic: "EPSG:4326"
 
 page:
-  # A5 portrait, millimetres.
-  width_mm: 148
-  height_mm: 210
+  # Pocket trim from the design handoff: 460x720 px @96dpi = 121.71 x 190.5 mm
+  # (ratio 0.639). Smaller than A5, closer to the real Guía T pocket size.
+  width_mm: 121.71
+  height_mm: 190.5
   # Printable map window inside the page (leaves room for margins + header).
   margin_left_mm: 6
   margin_right_mm: 4

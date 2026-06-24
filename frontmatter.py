@@ -1,11 +1,11 @@
-"""Cover + indices as A5 PDFs via WeasyPrint (HTML/CSS -> PDF).
+"""Cover + indices via WeasyPrint (HTML/CSS -> PDF).
 
-Builds:
-  cover.pdf            title + attribution + datos-fecha colophon
-  overview.pdf         barrios overview with the page-number grid
-  street_index.pdf     alphabetical streets -> cell refs (multi-column)
-  line_index.pdf       colectivo + subte lines -> ordered cells
-  landmark_index.pdf   landmarks -> cell refs, grouped by category
+Styled from design_handoff_guia_estilo/frontmatter.css (the "WeasyPrint
+surface"). Pixel values are at the 460x720 px design reference, which is exactly
+the booklet trim (121.71 x 190.5 mm @96dpi), so they port 1:1.
+
+Builds: cover.pdf (cover + cómo usar), overview.pdf, street_index.pdf,
+line_index.pdf.
 """
 from __future__ import annotations
 
@@ -23,167 +23,225 @@ from weasyprint import HTML
 from config import CFG
 from grid import load_boundary, load_grid
 
-PAGE_CSS = f"""
+# --------------------------------------------------------------------------
+# design tokens + classes (ported from frontmatter.css)
+# --------------------------------------------------------------------------
+TOK = {
+    "paper": "#F5F2EA", "panel": "#EDE7D8", "panel_border": "#DED7C6",
+    "ink": "#1C1A15", "ink_deep": "#17150F", "cream": "#F1ECDF",
+    "muted": "#8C877C", "muted2": "#9A9384", "body": "#5A554A",
+    "accent": "#ED5B2A", "hairline": "#DAD3C4", "column_rule": "#E4DDCE",
+}
+SUBTE_HEX = {"A": "#34B6E4", "B": "#E2231A", "C": "#163F8C", "D": "#00925A",
+             "E": "#6C3A93", "H": "#F4C500", "PM-C": "#00925A", "PM-S": "#00925A"}
+
+DESIGN_CSS = f"""
 {fonts.css_font_face()}
-@page {{ size: {CFG.page_w_mm}mm {CFG.page_h_mm}mm; margin: 12mm 10mm; }}
-* {{ font-family: '{fonts.BODY}', sans-serif; }}
-body {{ font-size: 8.5pt; color: #111; }}
-h1 {{ font-size: 20pt; margin: 0 0 4mm; }}
-h2 {{ font-size: 12pt; border-bottom: 1px solid #444; padding-bottom: 1mm;
-      margin: 4mm 0 2mm; }}
-.cols {{ column-count: 3; column-gap: 5mm; }}
-.cols2 {{ column-count: 2; column-gap: 5mm; }}
-.entry {{ break-inside: avoid; margin: 0 0 0.6mm; line-height: 1.25; }}
-.name {{ font-weight: bold; }}
-.refs {{ color: #333; }}
-.muted {{ color: #666; font-size: 7.5pt; }}
-.cover {{ text-align: center; margin-top: 40mm; }}
-.badge {{ display: inline-block; width: 5mm; height: 5mm; border-radius: 50%;
-          text-align: center; color: #fff; font-weight: bold; }}
-img.overview {{ width: 100%; }}
-/* street index: dense columns with big letter dividers (Guía T calles) */
-.idxcols {{ column-count: 4; column-gap: 4mm; }}
-.grp {{ break-inside: avoid; font-family: '{fonts.DISPLAY}'; font-size: 14pt;
-        color: #fff; background: #0e3d52; border-radius: 1.5mm;
-        padding: 0.3mm 2mm; margin: 2.5mm 0 1mm; display: inline-block; }}
-.st {{ break-inside: avoid; font-size: 7pt; line-height: 1.18; margin: 0 0 0.3mm; }}
-.st b {{ font-weight: bold; }}
-/* line index: bold number badges (Guía T bondis) */
-.linecols {{ column-count: 2; column-gap: 6mm; }}
-.lrow {{ break-inside: avoid; margin: 0 0 1.5mm; line-height: 1.2; }}
-.lbadge {{ display: inline-block; font-family: '{fonts.DISPLAY}'; font-size: 9.5pt;
-           border: 1pt solid #111; border-radius: 1.5mm; padding: 0.2mm 1.6mm;
-           margin-right: 1.6mm; }}
-.sbadge {{ display: inline-block; min-width: 4mm; text-align: center; font-size: 9pt;
-           font-weight: bold; color: #fff; border-radius: 1.2mm; padding: 0.2mm 1.6mm;
-           margin-right: 1.6mm; }}
-.lcells {{ font-size: 6.5pt; color: #333; }}
+:root {{
+  --paper:{TOK['paper']}; --panel:{TOK['panel']}; --panel-border:{TOK['panel_border']};
+  --ink:{TOK['ink']}; --ink-deep:{TOK['ink_deep']}; --cream:{TOK['cream']};
+  --muted:{TOK['muted']}; --muted-2:{TOK['muted2']}; --body:{TOK['body']};
+  --accent:{TOK['accent']}; --hairline:{TOK['hairline']}; --column-rule:{TOK['column_rule']};
+}}
+* {{ box-sizing: border-box; }}
+body {{ margin:0; font-family:"Public Sans", sans-serif; color:var(--ink); }}
+.page {{ width:460px; height:720px; overflow:hidden; position:relative;
+        page-break-after:always; background:var(--paper); }}
+.kicker {{ font-size:11px; font-weight:700; letter-spacing:1.5px;
+          text-transform:uppercase; color:var(--accent); }}
+
+/* cover */
+.cover {{ background:var(--ink-deep); color:var(--cream);
+         padding:38px 34px 32px; display:flex; flex-direction:column;
+         justify-content:space-between; }}
+.cover__fishnet {{ position:absolute; inset:0; pointer-events:none;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(237,91,42,.10) 0 1px, transparent 1px 20%),
+    repeating-linear-gradient(0deg,  rgba(237,91,42,.08) 0 1px, transparent 1px 14.285%); }}
+.cover__row {{ position:relative; display:flex; align-items:center; justify-content:space-between; }}
+.cover__edmark {{ font-size:10px; letter-spacing:1.5px; color:#7C766A; }}
+.cover__sub {{ font-size:13px; font-weight:600; letter-spacing:.5px; color:#A49C8A; margin-bottom:14px; }}
+.cover__title {{ font-family:"Archivo Black"; font-size:88px; line-height:.84;
+                letter-spacing:-3px; color:var(--cream); margin:0; position:relative; }}
+.cover__rule {{ width:60px; height:5px; background:var(--accent); margin:24px 0 18px; position:relative; }}
+.cover__tag {{ font-size:15px; line-height:1.45; color:#C9C2B1; max-width:300px; position:relative; }}
+.cover__chips {{ display:flex; position:relative; }}
+.cover__chips > * {{ margin-right:7px; }}
+.chip {{ width:34px; height:34px; border-radius:7px; display:flex;
+        align-items:center; justify-content:center;
+        font-family:"Archivo Black"; font-size:16px; color:#fff; }}
+.cover__foot {{ border-top:1px solid #2E2A20; padding-top:14px; display:flex;
+               justify-content:space-between; align-items:flex-end; position:relative; }}
+.cover__credits {{ font-size:9.5px; line-height:1.6; color:#7C766A; }}
+.cover__scale {{ font-size:9.5px; line-height:1.5; color:#A49C8A; text-align:right; white-space:nowrap; }}
+
+/* cómo usar */
+.como {{ padding:40px 38px 30px; display:flex; flex-direction:column; height:720px; }}
+.como__title {{ font-family:"Archivo Black"; font-size:40px; letter-spacing:-1.5px;
+               line-height:1; color:var(--ink); margin:6px 0 0; }}
+.rule {{ width:100%; height:1px; background:var(--hairline); margin:14px 0 22px; }}
+.step {{ display:flex; margin-bottom:22px; }}
+.step__n {{ flex:none; width:30px; height:30px; background:var(--ink-deep);
+           color:var(--cream); font-family:"Archivo Black"; font-size:15px;
+           display:flex; align-items:center; justify-content:center; margin-right:16px; }}
+.step__t {{ font-size:16px; font-weight:700; color:var(--ink); margin-bottom:4px; }}
+.step__d {{ font-size:13.5px; line-height:1.5; color:var(--body); }}
+.como__inset {{ margin-top:auto; background:var(--panel); border:1px solid var(--panel-border);
+               padding:18px; display:flex; align-items:center; }}
+.minigrid {{ border-collapse:collapse; border:1px solid #C7BEA9; margin-right:18px; }}
+.minigrid td {{ width:22px; height:22px; border:1px solid #C7BEA9; padding:0; }}
+.minigrid td.hit {{ background:var(--accent); }}
+.inset__cap {{ font-size:11px; color:var(--body); line-height:1.5; }}
+.inset__cap b {{ font-family:"Archivo Black"; color:var(--ink-deep); font-weight:400; }}
+
+/* índice (calles + líneas) */
+.idx-head {{ margin-bottom:10px; }}
+.idx-sub {{ font-size:11px; color:var(--muted); margin-top:2px; }}
+.indice__cols {{ column-count:2; column-gap:26px; column-rule:1px solid var(--column-rule); }}
+.grp {{ font-family:"Archivo Black"; font-size:30px; line-height:.9; color:var(--ink-deep);
+        margin:8px 0 4px; break-inside:avoid; break-after:avoid; }}
+.entry {{ break-inside:avoid; margin-bottom:6px; line-height:1.25; }}
+.entry__name {{ font-size:11.5px; font-weight:600; color:var(--ink); }}
+.ref {{ font-size:10.5px; white-space:nowrap; margin-right:4px; }}
+.ref__p {{ font-weight:700; color:var(--accent); }}
+.ref__c {{ color:var(--muted-2); }}
+.lrow {{ break-inside:avoid; margin-bottom:7px; line-height:1.3; }}
+.lbadge {{ font-family:"Archivo Black"; font-size:12px; border-radius:4px;
+          padding:1px 6px; margin-right:6px; color:#fff; }}
+.lroute {{ font-size:10px; color:var(--body); }}
+img.overview {{ width:100%; }}
 """
 
 
-def _render(html_body: str, out_name: str):
-    doc = f"<html><head><meta charset='utf-8'><style>{PAGE_CSS}</style></head>" \
-          f"<body>{html_body}</body></html>"
+def _render(body: str, out_name: str, page_rule: str):
+    doc = (f"<html><head><meta charset='utf-8'><style>{page_rule}{DESIGN_CSS}"
+           f"</style></head><body>{body}</body></html>")
     out = CFG.output_dir / out_name
     HTML(string=doc).write_pdf(out)
     print(f"[frontmatter] {out.name}")
     return out
 
 
+PAGE_FIXED = "@page { size: 460px 720px; margin: 0; }"
+PAGE_FLOW = "@page { size: 460px 720px; margin: 34px 30px 26px; background: " + TOK["paper"] + "; }"
+
+
+# --------------------------------------------------------------------------
+# matplotlib helper: page overview
+# --------------------------------------------------------------------------
 def make_overview_png() -> str:
-    grid = load_grid()
-    pages = grid["pages"]
+    pages = load_grid()["pages"]
     boundary = load_boundary()
-    fig, ax = plt.subplots(figsize=(CFG.mm_to_in(128), CFG.mm_to_in(170)))
-    boundary.plot(ax=ax, color="#eef2f0", edgecolor="#888", lw=0.6)
-    pages.boundary.plot(ax=ax, color="#c0392b", lw=0.5)
+    fig, ax = plt.subplots(figsize=(CFG.mm_to_in(100), CFG.mm_to_in(150)))
+    boundary.plot(ax=ax, color=TOK["panel"], edgecolor=TOK["muted"], lw=0.6)
+    pages.boundary.plot(ax=ax, color=TOK["accent"], lw=0.6)
     for _, p in pages.iterrows():
         c = p.geometry.centroid
         ax.text(c.x, c.y, str(int(p["page"])), ha="center", va="center",
-                fontsize=6, weight="bold", color="#c0392b")
+                fontsize=6, fontfamily="Archivo Black", color=TOK["accent"])
     ax.set_axis_off()
     ax.set_aspect("equal")
     out = CFG.output_dir / "overview.png"
-    fig.savefig(out, dpi=200, bbox_inches="tight")
+    fig.savefig(out, dpi=200, transparent=True, bbox_inches="tight")
     plt.close(fig)
     return out.as_uri()
 
 
-def make_silhouette_png() -> str:
-    """White CABA silhouette on transparent bg, for the cover watermark."""
-    fig, ax = plt.subplots(figsize=(CFG.mm_to_in(150), CFG.mm_to_in(170)))
-    load_boundary().plot(ax=ax, color="white", edgecolor="none")
-    ax.set_axis_off()
-    ax.set_aspect("equal")
-    out = CFG.output_dir / "silhouette.png"
-    fig.savefig(out, dpi=200, transparent=True, bbox_inches="tight", pad_inches=0)
-    plt.close(fig)
-    return out.as_uri()
-
-
-SUBTE_STRIPE = ["#38b6ff", "#e30613", "#005aab", "#009b3a", "#6d2c91", "#ffd200"]
+# --------------------------------------------------------------------------
+# cover + cómo usar
+# --------------------------------------------------------------------------
+def _minigrid_html() -> str:
+    """5x7 cell grid (A-E / 1-7) with C4 filled, as a table (WeasyPrint has no
+    CSS grid)."""
+    rows = []
+    for r in range(7):
+        cells = "".join(
+            f"<td class='hit'></td>" if (r == 3 and c == 2) else "<td></td>"
+            for c in range(5))
+        rows.append(f"<tr>{cells}</tr>")
+    return f"<table class='minigrid'>{''.join(rows)}</table>"
 
 
 def cover():
-    sil = make_silhouette_png()
-    stripe = "".join(f"<span style='background:{c}'></span>" for c in SUBTE_STRIPE)
-    w, h = CFG.page_w_mm, CFG.page_h_mm
-    css = f"""
-    {fonts.css_font_face()}
-    @page cover {{ size: {w}mm {h}mm; margin: 0; }}
-    @page {{ size: {w}mm {h}mm; margin: 14mm 12mm; }}
-    * {{ font-family: '{fonts.BODY}', sans-serif; }}
-    .cv {{ page: cover; position: relative; width: {w}mm; height: {h}mm;
-           overflow: hidden; color: #fff;
-           background: linear-gradient(155deg, #0e3d52 0%, #0a2433 100%); }}
-    .cv img {{ position: absolute; right: -28mm; bottom: -16mm; width: 165mm;
-               opacity: 0.10; }}
-    .kicker {{ position: absolute; top: 20mm; left: 14mm; font-size: 9pt;
-               letter-spacing: 4px; text-transform: uppercase; color: #bfe0e8; }}
-    .title {{ position: absolute; top: 52mm; left: 13mm; font-size: 46pt;
-              font-family: '{fonts.DISPLAY}', sans-serif; line-height: 0.95; }}
-    .sub {{ position: absolute; top: 96mm; left: 14mm; font-size: 13pt;
-            color: #dceef2; }}
-    .stripe {{ position: absolute; top: 112mm; left: 14mm; }}
-    .stripe span {{ display: inline-block; width: 14mm; height: 5mm;
-                    margin-right: 1.5mm; border-radius: 1mm; }}
-    .meta {{ position: absolute; top: 124mm; left: 14mm; font-size: 9pt;
-             color: #9fc3cf; }}
-    .foot {{ position: absolute; bottom: 13mm; left: 14mm; right: 14mm;
-             font-size: 7pt; color: #88abb6; line-height: 1.55; }}
-    h2 {{ font-size: 13pt; border-bottom: 1px solid #444; padding-bottom: 1mm;
-          margin: 0 0 3mm; }}
-    ol {{ font-size: 10pt; line-height: 1.55; padding-left: 6mm; }}
-    .note {{ color: #666; font-size: 8pt; margin-top: 3mm; }}
-    """
-    body = f"""
-    <div class='cv'>
-      <img src='{sil}'>
-      <div class='kicker'>{escape(CFG.edition)}</div>
-      <div class='title'>{escape(CFG.title)}</div>
-      <div class='sub'>{escape(CFG.subtitle)}</div>
-      <div class='stripe'>{stripe}</div>
-      <div class='meta'>Escala 1:{int(CFG.scale_denom)} · datos {escape(CFG.datos_fecha)}</div>
-      <div class='foot'>
-        Recorridos AMBA (Min. Transporte, CC-BY 4.0) ·
-        Subte / Callejero / Barrios / Manzanas (GCBA) ·
-        Puntos de interés © OpenStreetMap contributors (ODbL).<br>
-        Hecho con software libre. Licencia del código: MIT.
+    title_html = "<br>".join(escape(w) for w in CFG.title.split())
+    scale_str = f"{int(CFG.scale_denom):,}".replace(",", " ")
+    chips = "".join(
+        f"<div class='chip' style='background:{SUBTE_HEX[k]};"
+        f"{'color:#1C1A15' if k == 'H' else ''}'>{k}</div>"
+        for k in ("A", "B", "C", "D", "E", "H"))
+    cover_html = f"""
+    <div class='page cover'>
+      <div class='cover__fishnet'></div>
+      <div class='cover__row'>
+        <div class='kicker'>{escape(CFG.edition)}</div>
+        <div class='cover__edmark'>v{escape(CFG.datos_fecha)}</div>
       </div>
-    </div>
-    <div style='page-break-before: always'>
-      <h2>Cómo usar</h2>
-      <ol>
-        <li>Buscá tu calle en el <b>índice de calles</b>. Anotá la referencia,
-            por ejemplo <b>12-C4</b> (página 12, celda C4).</li>
-        <li>Andá a la <b>página del mapa</b> 12 y ubicá la celda C4 con las
-            letras (A-E) arriba y los números (1-7) al costado.</li>
-        <li>Pasá a la <b>página de al lado</b> (la grilla de líneas): tiene la
-            misma cuadrícula. Leé la celda C4 y vas a ver las líneas que pasan
-            por ahí. Los números son colectivos; la letra de color es el subte.</li>
-      </ol>
-      <p class='note'>Cada mapa va seguido de su grilla de líneas.</p>
+      <div>
+        <h1 class='cover__title'>{title_html}</h1>
+        <div class='cover__rule'></div>
+        <div class='cover__tag'>{escape(CFG.subtitle)}. Mapas, índice de calles
+          y líneas de colectivo y subte, hechos con datos abiertos.</div>
+      </div>
+      <div class='cover__chips'>{chips}</div>
+      <div class='cover__foot'>
+        <div class='cover__credits'>
+          Recorridos AMBA · Min. Transporte (CC-BY 4.0)<br>
+          Subte / Callejero / Barrios / Manzanas · GCBA (CC-BY 2.5 AR)<br>
+          Puntos de interés · © OpenStreetMap (ODbL)<br>
+          Software libre · código MIT
+        </div>
+        <div class='cover__scale'>Escala 1:{scale_str}<br>EPSG:9498</div>
+      </div>
     </div>"""
-    doc = f"<html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>"
-    out = CFG.output_dir / "cover.pdf"
-    HTML(string=doc).write_pdf(out)
-    print(f"[frontmatter] {out.name}")
-    return out
+
+    como_html = f"""
+    <div class='page como'>
+      <div class='kicker'>{escape(CFG.title)}</div>
+      <h1 class='como__title'>Cómo usar</h1>
+      <div class='rule'></div>
+      <div class='step'><div class='step__n'>1</div><div>
+        <div class='step__t'>Buscá la calle</div>
+        <div class='step__d'>En el <b>índice de calles</b>, anotá la referencia,
+          por ejemplo <b>12-C4</b> (página 12, celda C4).</div></div></div>
+      <div class='step'><div class='step__n'>2</div><div>
+        <div class='step__t'>Andá al mapa</div>
+        <div class='step__d'>Página 12, celda C4: letras A–E arriba, números 1–7
+          al costado.</div></div></div>
+      <div class='step'><div class='step__n'>3</div><div>
+        <div class='step__t'>Leé las líneas</div>
+        <div class='step__d'>La página de al lado repite la cuadrícula. En C4
+          están las líneas: número = colectivo, letra de color = subte.</div></div></div>
+      <div class='como__inset'>
+        {_minigrid_html()}
+        <div class='inset__cap'>Misma grilla en el mapa y en las líneas.<br>
+          Referencia <b>12-C4</b>.</div>
+      </div>
+    </div>"""
+    return _render(cover_html + como_html, "cover.pdf", PAGE_FIXED)
 
 
 def overview():
     uri = make_overview_png()
-    body = f"<h2>Mapa índice de páginas</h2><img class='overview' src='{uri}'>"
-    return _render(body, "overview.pdf")
+    body = f"""
+    <div class='idx-head'><div class='kicker'>Guía Abierta</div>
+      <div class='idx-sub'>Mapa índice — número de página por zona</div></div>
+    <img class='overview' src='{uri}'>"""
+    return _render(body, "overview.pdf", PAGE_FLOW)
 
 
+# --------------------------------------------------------------------------
+# street index
+# --------------------------------------------------------------------------
 def _first_letter(name: str) -> str:
     for ch in name:
         if ch.isalpha():
-            if ch.lower() == "ñ":
-                return "Ñ"
-            return unicodedata.normalize("NFD", ch)[0].upper()
+            return "Ñ" if ch.lower() == "ñ" else unicodedata.normalize("NFD", ch)[0].upper()
     return "#"
+
+
+def _ref_html(ref: str) -> str:
+    page, cell = ref.split("-")
+    return f"<span class='ref'><span class='ref__p'>{page}</span><span class='ref__c'>-{cell}</span></span>"
 
 
 def street_index_pdf():
@@ -194,47 +252,19 @@ def street_index_pdf():
         if letter != cur:
             cur = letter
             parts.append(f"<div class='grp'>{escape(letter)}</div>")
-        rng = f" <span class='muted'>{e['range']}</span>" if e.get("range") else ""
-        parts.append(f"<div class='st'><b>{escape(e['name'])}</b>{rng} "
-                     f"<span class='refs'>{', '.join(e['refs'])}</span></div>")
-    body = f"<h2>Índice de calles</h2><div class='idxcols'>{''.join(parts)}</div>"
-    return _render(body, "street_index.pdf")
+        rng = f" <span class='ref__c'>{e['range']}</span>" if e.get("range") else ""
+        refs = "".join(_ref_html(r) for r in e["refs"])
+        parts.append(f"<div class='entry'><span class='entry__name'>"
+                     f"{escape(e['name'])}</span>{rng} {refs}</div>")
+    head = ("<div class='idx-head'><div class='kicker'>Índice de calles</div>"
+            "<div class='idx-sub'>calle · página-celda</div></div>")
+    body = head + f"<div class='indice__cols'>{''.join(parts)}</div>"
+    return _render(body, "street_index.pdf", PAGE_FLOW)
 
 
-SUBTE_HEX = {"A": "#38b6ff", "B": "#e30613", "C": "#005aab", "D": "#009b3a",
-             "E": "#6d2c91", "H": "#ffd200", "PM-C": "#00a651", "PM-S": "#00a651"}
-
-
-def _color_overrides() -> dict:
-    """Optional real liveries: data/line_colors.csv with rows `line,#hex`."""
-    import csv
-    p = CFG.data_dir / "line_colors.csv"
-    out = {}
-    if p.exists():
-        for row in csv.reader(p.read_text(encoding="utf-8").splitlines()):
-            if len(row) >= 2 and row[1].strip().startswith("#"):
-                out[row[0].strip()] = row[1].strip()
-    return out
-
-
-def _line_bg(line: str, overrides: dict) -> str:
-    if str(line) in overrides:
-        return overrides[str(line)]
-    import colorsys
-    import zlib
-    s = str(line)
-    seed = int(s) if s.isdigit() else zlib.crc32(s.encode())
-    h = ((seed * 137) % 360) / 360.0   # golden-ish spread for distinct hues
-    r, g, b = colorsys.hls_to_rgb(h, 0.52, 0.55)
-    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
-
-
-def _text_on(bg: str) -> str:
-    r, g, b = int(bg[1:3], 16), int(bg[3:5], 16), int(bg[5:7], 16)
-    lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-    return "#111" if lum > 0.62 else "#fff"
-
-
+# --------------------------------------------------------------------------
+# line index (colectivos + subte), per-line colored badges + street route
+# --------------------------------------------------------------------------
 def _ref_key(ref):
     page, cell = ref.split("-")
     return (int(page), cell[0], int(cell[1:]))
@@ -252,12 +282,36 @@ def _line_cells(ln):
 
 
 def _line_route(ln):
-    """Route as street names (readable); falls back to cell refs if the street
-    match produced nothing."""
     streets = ln.get("streets") or []
-    if streets:
-        return ", ".join(streets)
-    return ", ".join(_line_cells(ln))
+    return ", ".join(streets) if streets else ", ".join(_line_cells(ln))
+
+
+def _color_overrides() -> dict:
+    import csv
+    p = CFG.data_dir / "line_colors.csv"
+    out = {}
+    if p.exists():
+        for row in csv.reader(p.read_text(encoding="utf-8").splitlines()):
+            if len(row) >= 2 and row[1].strip().startswith("#"):
+                out[row[0].strip()] = row[1].strip()
+    return out
+
+
+def _line_bg(line, overrides):
+    if str(line) in overrides:
+        return overrides[str(line)]
+    import colorsys
+    import zlib
+    s = str(line)
+    seed = int(s) if s.isdigit() else zlib.crc32(s.encode())
+    h = ((seed * 137) % 360) / 360.0
+    r, g, b = colorsys.hls_to_rgb(h, 0.46, 0.55)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _text_on(bg):
+    r, g, b = int(bg[1:3], 16), int(bg[3:5], 16), int(bg[5:7], 16)
+    return "#1C1A15" if (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 else "#fff"
 
 
 def line_index_pdf():
@@ -266,47 +320,26 @@ def line_index_pdf():
                     key=lambda l: _line_key(l["line"]))
     subte = sorted((l for l in data["lines"] if l["mode"] == "subte"),
                    key=lambda l: _line_key(l["line"]))
-
     ov = _color_overrides()
-    def cbadge(line):
-        bg = _line_bg(line, ov)
-        return f"background:{bg};color:{_text_on(bg)};border-color:rgba(0,0,0,.35)"
-    crows = "".join(
-        f"<div class='lrow'><span class='lbadge' style='{cbadge(l['line'])}'>"
-        f"{escape(str(l['line']))}</span>"
-        f"<span class='lcells'>{escape(_line_route(l))}</span></div>"
-        for l in colect)
-    srows = "".join(
-        f"<div class='lrow'><span class='sbadge' style='background:"
-        f"{SUBTE_HEX.get(str(l['line']).upper(), '#444')}'>{escape(str(l['line']))}</span>"
-        f"<span class='lcells'>{escape(_line_route(l))}</span></div>"
-        for l in subte)
-    body = (f"<h2>Líneas de colectivo</h2><div class='linecols'>{crows}</div>"
-            f"<h2>Subte</h2><div class='linecols'>{srows}</div>")
-    return _render(body, "line_index.pdf")
 
+    def row(ln, bg):
+        fg = _text_on(bg)
+        return (f"<div class='lrow'><span class='lbadge' style='background:{bg};"
+                f"color:{fg}'>{escape(str(ln['line']))}</span>"
+                f"<span class='lroute'>{escape(_line_route(ln))}</span></div>")
 
-def landmark_index_pdf():
-    data = json.loads((CFG.output_dir / "landmarks.json").read_text(encoding="utf-8"))
-    by_cat: dict[str, list] = {}
-    for e in data["entries"]:
-        by_cat.setdefault(e["category"], []).append(e)
-    sections = []
-    for cat in sorted(by_cat):
-        rows = "".join(
-            f"<div class='entry'><span class='name'>{escape(e['name'])}</span> "
-            f"<span class='refs'>{e['ref']}</span></div>"
-            for e in sorted(by_cat[cat], key=lambda x: x["name"]))
-        sections.append(f"<h2>{escape(cat)}</h2><div class='cols'>{rows}</div>")
-    return _render("".join(sections), "landmark_index.pdf")
+    crows = "".join(row(l, _line_bg(l["line"], ov)) for l in colect)
+    srows = "".join(row(l, SUBTE_HEX.get(str(l["line"]).upper(), "#444")) for l in subte)
+    head = ("<div class='idx-head'><div class='kicker'>Líneas de colectivo</div>"
+            "<div class='idx-sub'>línea · recorrido por calles</div></div>")
+    shead = "<div class='idx-head'><div class='kicker'>Subte</div></div>"
+    body = (head + f"<div class='indice__cols'>{crows}</div>"
+            + shead + f"<div class='indice__cols'>{srows}</div>")
+    return _render(body, "line_index.pdf", PAGE_FLOW)
 
 
 def build_frontmatter() -> list:
-    out = [cover(), overview(), street_index_pdf(), line_index_pdf()]
-    # Landmark index stays off (map markers cover it). Re-enable if needed:
-    # if (CFG.output_dir / "landmarks.json").exists():
-    #     out.append(landmark_index_pdf())
-    return out
+    return [cover(), overview(), street_index_pdf(), line_index_pdf()]
 
 
 if __name__ == "__main__":
