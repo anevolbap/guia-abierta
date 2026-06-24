@@ -224,7 +224,7 @@ def render_page(page_no, tile, layers):
     fig.text(0.5, 1 - CFG.margin_top_mm / CFG.page_h_mm / 2, str(page_no),
              ha="center", va="center", fontsize=11, weight="bold")
     fig.text(0.5, CFG.margin_bottom_mm / CFG.page_h_mm / 2,
-             f"Guía T · 1:{int(CFG.scale_denom)} · datos {CFG.datos_fecha} · "
+             f"{CFG.title} · 1:{int(CFG.scale_denom)} · datos {CFG.datos_fecha} · "
              "GCBA + OSM (ODbL) + AMBA (CC-BY)", ha="center", va="center", fontsize=4)
 
     out = CFG.pages_dir / f"{page_no:02d}.pdf"
@@ -286,15 +286,25 @@ def render_transit_page(page_no, page_cells, lines_by_ref):
                                   fc=SUBTE_COLORS.get(str(letter).upper(), "#444")))
         if col_nums:
             n = len(col_nums)
-            fs = 5.2 if n <= 10 else (4.3 if n <= 18 else 3.5)
-            wrap = 11 if fs >= 5 else (13 if fs >= 4 else 15)
+            # Size the numbers to fill the cell: arrange in a near-square block,
+            # then take the largest font that fits both the width and height
+            # budgets of the ~27 mm cell (a bit less when subte badges sit on top).
+            w_items = max(1, round(math.sqrt(0.55 * n)))
+            l_lines = math.ceil(n / w_items)
+            h_mm = 20.0 if subte else 24.0
+            fs_h = h_mm / (l_lines * 1.05) / 0.3528
+            fs_w = 24.0 / (w_items * 1.9) / 0.3528
+            fs = max(3.2, min(10.0, fs_h, fs_w))
+            wrap = max(3, round(w_items * 3.6))
             txt = textwrap.fill(" ".join(_fmt_colectivo(l) for l in col_nums), width=wrap)
             yc = CFG.rows - row - 0.5 - (0.16 if subte else 0.0)
             ax.text(cx, yc, txt, ha="center", va="center", fontsize=fs,
                     color="#111", linespacing=1.0, clip_on=True)
 
-    fig.text(0.5, 1 - CFG.margin_top_mm / CFG.page_h_mm / 2, f"{page_no} · líneas",
-             ha="center", va="center", fontsize=10, weight="bold")
+    # small page number, bottom-right (no "líneas" header)
+    fig.text(1 - CFG.margin_right_mm / CFG.page_w_mm,
+             CFG.margin_bottom_mm / CFG.page_h_mm / 2, str(page_no),
+             ha="right", va="center", fontsize=7, weight="bold")
     out = CFG.pages_dir / f"{page_no:02d}_lines.pdf"
     fig.savefig(out)
     plt.close(fig)
@@ -302,6 +312,9 @@ def render_transit_page(page_no, page_cells, lines_by_ref):
 
 
 def render_all():
+    # clear stale page PDFs so a shorter run does not leave old pages behind
+    for old in CFG.pages_dir.glob("*.pdf"):
+        old.unlink()
     grid = load_grid()
     pages, cells = grid["pages"], grid["cells"]
     layers = _load_layers()

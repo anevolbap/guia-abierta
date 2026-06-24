@@ -69,33 +69,85 @@ def make_overview_png() -> str:
     return out.as_uri()
 
 
+def make_silhouette_png() -> str:
+    """White CABA silhouette on transparent bg, for the cover watermark."""
+    fig, ax = plt.subplots(figsize=(CFG.mm_to_in(150), CFG.mm_to_in(170)))
+    load_boundary().plot(ax=ax, color="white", edgecolor="none")
+    ax.set_axis_off()
+    ax.set_aspect("equal")
+    out = CFG.output_dir / "silhouette.png"
+    fig.savefig(out, dpi=200, transparent=True, bbox_inches="tight", pad_inches=0)
+    plt.close(fig)
+    return out.as_uri()
+
+
+SUBTE_STRIPE = ["#38b6ff", "#e30613", "#005aab", "#009b3a", "#6d2c91", "#ffd200"]
+
+
 def cover():
+    sil = make_silhouette_png()
+    stripe = "".join(f"<span style='background:{c}'></span>" for c in SUBTE_STRIPE)
+    w, h = CFG.page_w_mm, CFG.page_h_mm
+    css = f"""
+    @page cover {{ size: {w}mm {h}mm; margin: 0; }}
+    @page {{ size: {w}mm {h}mm; margin: 14mm 12mm; }}
+    * {{ font-family: 'DejaVu Sans', sans-serif; }}
+    .cv {{ page: cover; position: relative; width: {w}mm; height: {h}mm;
+           overflow: hidden; color: #fff;
+           background: linear-gradient(155deg, #0e3d52 0%, #0a2433 100%); }}
+    .cv img {{ position: absolute; right: -28mm; bottom: -16mm; width: 165mm;
+               opacity: 0.10; }}
+    .kicker {{ position: absolute; top: 20mm; left: 14mm; font-size: 9pt;
+               letter-spacing: 4px; text-transform: uppercase; color: #bfe0e8; }}
+    .title {{ position: absolute; top: 54mm; left: 13mm; font-size: 50pt;
+              font-weight: bold; line-height: 0.92; }}
+    .sub {{ position: absolute; top: 96mm; left: 14mm; font-size: 13pt;
+            color: #dceef2; }}
+    .stripe {{ position: absolute; top: 112mm; left: 14mm; }}
+    .stripe span {{ display: inline-block; width: 14mm; height: 5mm;
+                    margin-right: 1.5mm; border-radius: 1mm; }}
+    .meta {{ position: absolute; top: 124mm; left: 14mm; font-size: 9pt;
+             color: #9fc3cf; }}
+    .foot {{ position: absolute; bottom: 13mm; left: 14mm; right: 14mm;
+             font-size: 7pt; color: #88abb6; line-height: 1.55; }}
+    h2 {{ font-size: 13pt; border-bottom: 1px solid #444; padding-bottom: 1mm;
+          margin: 0 0 3mm; }}
+    ol {{ font-size: 10pt; line-height: 1.55; padding-left: 6mm; }}
+    .note {{ color: #666; font-size: 8pt; margin-top: 3mm; }}
+    """
     body = f"""
-    <div class='cover'>
-      <h1>Guía T</h1>
-      <p style='font-size:12pt'>Buenos Aires · colectivos y subte</p>
-      <p class='muted'>Edición open data · datos a fecha {escape(CFG.datos_fecha)}</p>
-      <p class='muted' style='margin-top:30mm'>
+    <div class='cv'>
+      <img src='{sil}'>
+      <div class='kicker'>{escape(CFG.edition)}</div>
+      <div class='title'>{escape(CFG.title)}</div>
+      <div class='sub'>{escape(CFG.subtitle)}</div>
+      <div class='stripe'>{stripe}</div>
+      <div class='meta'>Escala 1:{int(CFG.scale_denom)} · datos {escape(CFG.datos_fecha)}</div>
+      <div class='foot'>
         Recorridos AMBA (Min. Transporte, CC-BY 4.0) ·
-        Subte/Callejero/Barrios (GCBA) ·
+        Subte / Callejero / Barrios / Manzanas (GCBA) ·
         Puntos de interés © OpenStreetMap contributors (ODbL).<br>
-        Generado con software libre. Escala 1:{int(CFG.scale_denom)}.
-      </p>
+        Hecho con software libre. Licencia del código: MIT.
+      </div>
     </div>
     <div style='page-break-before: always'>
       <h2>Cómo usar</h2>
-      <ol style='font-size:9.5pt; line-height:1.5'>
+      <ol>
         <li>Buscá tu calle en el <b>índice de calles</b>. Anotá la referencia,
             por ejemplo <b>12-C4</b> (página 12, celda C4).</li>
         <li>Andá a la <b>página del mapa</b> 12 y ubicá la celda C4 con las
             letras (A-E) arriba y los números (1-7) al costado.</li>
-        <li>Pasá a la <b>página siguiente</b> (12 · líneas): tiene la misma
-            grilla. Leé la celda C4 y vas a ver las líneas que pasan por ahí.
-            Los números son colectivos; la letra de color es el subte.</li>
+        <li>Pasá a la <b>página de al lado</b> (la grilla de líneas): tiene la
+            misma cuadrícula. Leé la celda C4 y vas a ver las líneas que pasan
+            por ahí. Los números son colectivos; la letra de color es el subte.</li>
       </ol>
-      <p class='muted'>Cada mapa va seguido de su grilla de líneas.</p>
+      <p class='note'>Cada mapa va seguido de su grilla de líneas.</p>
     </div>"""
-    return _render(body, "cover.pdf")
+    doc = f"<html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>"
+    out = CFG.output_dir / "cover.pdf"
+    HTML(string=doc).write_pdf(out)
+    print(f"[frontmatter] {out.name}")
+    return out
 
 
 def overview():

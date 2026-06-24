@@ -42,6 +42,7 @@ class Config:
 
     # --- grid filtering ---
     min_land_fraction: float = 0.04
+    min_street_len_m: float = 9000
     snap_origin_m: float = 1000
 
     modes: dict[str, bool] = field(default_factory=dict)
@@ -56,6 +57,9 @@ class Config:
     mvp_max_pages: int = 6
 
     datos_fecha: str = ""
+    title: str = "Guía Bondi"
+    subtitle: str = "Colectivos y subte · Buenos Aires"
+    edition: str = "Edición abierta"
     sources: dict[str, Any] = field(default_factory=dict)
 
     # paths
@@ -89,6 +93,7 @@ class Config:
 
         gr = raw.get("grid", {})
         c.min_land_fraction = gr.get("min_land_fraction", c.min_land_fraction)
+        c.min_street_len_m = gr.get("min_street_len_m", c.min_street_len_m)
         c.snap_origin_m = gr.get("snap_origin_m", c.snap_origin_m)
 
         c.modes = raw.get("modes", {"colectivo": True, "subte": True})
@@ -106,6 +111,10 @@ class Config:
         c.mvp_max_pages = mvp.get("max_pages", c.mvp_max_pages)
 
         c.datos_fecha = raw.get("datos_fecha", "")
+        bk = raw.get("booklet", {})
+        c.title = bk.get("title", c.title)
+        c.subtitle = bk.get("subtitle", c.subtitle)
+        c.edition = bk.get("edition", c.edition)
         c.sources = raw.get("sources", {})
 
         paths = raw.get("paths", {})

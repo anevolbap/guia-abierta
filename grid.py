@@ -70,12 +70,21 @@ def build_grid(streets: gpd.GeoDataFrame | None = None) -> dict[str, gpd.GeoData
     nx = math.ceil((maxx - ox) / pw)
     ny = math.ceil((maxy - oy) / ph)
 
-    # Street index (in work CRS) used as a sharper emptiness test if provided.
-    street_union = None
+    # Emptiness test. Street density is the sharpest signal: a tile that is
+    # mostly río or a big park carries little street length and is dropped, so
+    # we don't waste pages on near-empty grids. Falls back to land area when no
+    # street layer is available.
+    streets_work = None
     if streets is not None and not streets.empty:
-        street_union = streets.to_crs(CFG.crs_work).geometry.unary_union
+        streets_work = streets.to_crs(CFG.crs_work)
+    else:
+        calles = CFG.data_dir / "calles.geojson"
+        if calles.exists():
+            streets_work = gpd.read_file(calles).to_crs(CFG.crs_work)
+    sidx = streets_work.sindex if streets_work is not None else None
 
     tiles = []
+    dropped_empty = 0
     for j in range(ny):          # j from bottom
         for i in range(nx):      # i from left
             x0 = ox + i * pw
@@ -85,9 +94,11 @@ def build_grid(streets: gpd.GeoDataFrame | None = None) -> dict[str, gpd.GeoData
             if inter.is_empty:
                 continue
             land_frac = inter.area / tile.area
-            if street_union is not None:
-                has_streets = tile.intersects(street_union)
-                if not has_streets:
+            if sidx is not None:
+                cand = list(sidx.intersection(tile.bounds))
+                slen = streets_work.iloc[cand].intersection(tile).length.sum() if cand else 0.0
+                if slen < CFG.min_street_len_m:
+                    dropped_empty += 1
                     continue
             elif land_frac < CFG.min_land_fraction:
                 continue
@@ -95,6 +106,9 @@ def build_grid(streets: gpd.GeoDataFrame | None = None) -> dict[str, gpd.GeoData
 
     if not tiles:
         raise RuntimeError("no page tiles survived filtering; check scale/boundary")
+    if dropped_empty:
+        print(f"[grid] dropped {dropped_empty} near-empty tiles "
+              f"(< {CFG.min_street_len_m:.0f} m of streets)")
 
     # Reading order: top row first (max j), left to right (min i).
     tiles.sort(key=lambda t: (-t["j"], t["i"]))

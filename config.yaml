@@ -30,8 +30,11 @@ subgrid:
 
 grid:
   # A tile is kept only if its land coverage (intersection with the CABA
-  # boundary, or with streets when available) reaches this fraction.
+  # boundary) reaches this fraction. Used only when no street layer is loaded.
   min_land_fraction: 0.04
+  # Preferred emptiness test: drop a tile with less than this many metres of
+  # street inside it (kills mostly-río / mostly-park pages).
+  min_street_len_m: 9000
   # Snap the fishnet origin to a round metric value so reruns are stable.
   snap_origin_m: 1000
 
@@ -71,6 +74,12 @@ mvp:
   enabled: false
   barrio: "PALERMO"   # large + iconic: spans several pages, Subte D, big parks
   max_pages: 6
+
+booklet:
+  # Avoid "Guía T" (a commercial product name). This is an original open name.
+  title: "Guía Bondi"
+  subtitle: "Colectivos y subte · Buenos Aires"
+  edition: "Edición abierta"
 
 datos_fecha: "2026-06"   # printed as "datos a fecha X" in the footer/colophon
 
