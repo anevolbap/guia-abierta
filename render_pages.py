@@ -7,12 +7,15 @@ is physically map_w_mm x map_h_mm and spans page_w_m x page_h_m of data.
 """
 from __future__ import annotations
 
+import json
 import math
+import textwrap
 
 import matplotlib
 
 matplotlib.use("Agg")
 import geopandas as gpd
+import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 
 from config import CFG
@@ -26,7 +29,6 @@ SUBTE_COLORS = {
 # drawn as area fills; everything else is a labelled marker
 FILL_STYLE = {
     "parque": {"color": "#d7ecd2", "edgecolor": "#b6d8ad"},
-    "cementerio": {"color": "#e6e3da", "edgecolor": "#c9c4b4"},
 }
 FILL_CATS = set(FILL_STYLE)
 
@@ -122,25 +124,20 @@ def _longest_line(geom):
     return max(parts, key=lambda p: p.length) if parts else None
 
 
-# min on-page length (m) before a non-avenida street is worth labelling
-_MIN_LABEL_LEN_M = 85
-# skip a label if another sits within this many metres (declutter)
-_LABEL_MIN_GAP_M = 38
+_HALO = [pe.withStroke(linewidth=0.9, foreground="white")]
 
 
 def _label_streets(ax, st):
-    """One rotated label per street name on this page. Avenidas always; other
-    streets only if their on-page run is long enough (keeps clutter down)."""
-    placed = []
+    """Label EVERY street on the page (one bold, halo'd label per name, placed
+    along its longest on-page run). The white halo lifts the name off the
+    street lines; usability requires every street to be named."""
     for name, grp in st.groupby("__label"):
         if not name:
             continue
         part = _longest_line(grp.geometry.unary_union)
-        if part is None:
+        if part is None or part.length == 0:
             continue
         is_av = bool(grp["__av"].any())
-        if not is_av and part.length < _MIN_LABEL_LEN_M:
-            continue
         mid = part.interpolate(0.5, normalized=True)
         p1 = part.interpolate(0.45, normalized=True)
         p2 = part.interpolate(0.55, normalized=True)
@@ -149,16 +146,10 @@ def _label_streets(ax, st):
             ang -= 180
         elif ang < -90:
             ang += 180
-        # thin out near-duplicate placements
-        if any(abs(mid.x - x) < _LABEL_MIN_GAP_M and abs(mid.y - y) < _LABEL_MIN_GAP_M
-               for x, y in placed):
-            continue
-        placed.append((mid.x, mid.y))
         ax.text(mid.x, mid.y, str(name), rotation=ang, rotation_mode="anchor",
-                ha="center", va="center", clip_on=True, zorder=2.5,
-                fontsize=4.6 if is_av else 3.4,
-                color="#1a3a6b" if is_av else "0.25",
-                weight="bold" if is_av else "normal")
+                ha="center", va="center", clip_on=True, zorder=2.6,
+                fontsize=4.8 if is_av else 3.7, weight="bold",
+                color="#13386e" if is_av else "#111", path_effects=_HALO)
 
 
 def render_page(page_no, tile, layers):
@@ -227,14 +218,95 @@ def render_page(page_no, tile, layers):
     return out
 
 
+def _line_key(line):
+    return (0, int(line)) if str(line).isdigit() else (1, str(line))
+
+
+def _fmt_colectivo(line):
+    s = str(line)
+    return str(int(s)) if s.isdigit() else s
+
+
+def render_transit_page(page_no, page_cells, lines_by_ref):
+    """The Guía T facing page: same A-E / 1-7 grid as the map, but each cell
+    lists the lines passing through it. Read your cell on the map, flip here,
+    read the buses. Colectivos as numbers, subte as a coloured letter."""
+    fig = plt.figure(figsize=(CFG.mm_to_in(CFG.page_w_mm), CFG.mm_to_in(CFG.page_h_mm)))
+    left = CFG.margin_left_mm / CFG.page_w_mm
+    bottom = CFG.margin_bottom_mm / CFG.page_h_mm
+    width = CFG.map_w_mm / CFG.page_w_mm
+    height = CFG.map_h_mm / CFG.page_h_mm
+    ax = fig.add_axes([left, bottom, width, height])
+    ax.set_xlim(0, CFG.cols)
+    ax.set_ylim(0, CFG.rows)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for c in range(CFG.cols + 1):
+        ax.plot([c, c], [0, CFG.rows], color="0.55", lw=0.5)
+    for r in range(CFG.rows + 1):
+        ax.plot([0, CFG.cols], [r, r], color="0.55", lw=0.5)
+    for c in range(CFG.cols):
+        ax.text(c + 0.5, CFG.rows + 0.1, CFG.col_labels[c], ha="center",
+                va="bottom", fontsize=7, weight="bold", clip_on=False)
+    for r in range(CFG.rows):
+        ax.text(-0.1, CFG.rows - r - 0.5, CFG.row_labels[r], ha="right",
+                va="center", fontsize=7, weight="bold", clip_on=False)
+
+    for _, cell in page_cells.iterrows():
+        col, row, ref = int(cell["col"]), int(cell["row"]), cell["ref"]
+        tags = lines_by_ref.get(ref, [])
+        col_nums = sorted((t["line"] for t in tags if t["mode"] == "colectivo"),
+                          key=_line_key)
+        subte = sorted((t["line"] for t in tags if t["mode"] == "subte"),
+                       key=_line_key)
+        cx = col + 0.5
+        if subte:
+            step = 0.2
+            x0 = cx - (len(subte) - 1) * step / 2
+            y = CFG.rows - row - 0.22
+            for i, letter in enumerate(subte):
+                ax.text(x0 + i * step, y, str(letter), fontsize=3.6, ha="center",
+                        va="center", color="white", clip_on=True,
+                        bbox=dict(boxstyle="square,pad=0.15", ec="none",
+                                  fc=SUBTE_COLORS.get(str(letter).upper(), "#444")))
+        if col_nums:
+            fs = 3.4 if len(col_nums) <= 10 else (2.9 if len(col_nums) <= 16 else 2.5)
+            txt = textwrap.fill(" ".join(_fmt_colectivo(l) for l in col_nums), width=12)
+            yc = CFG.rows - row - 0.5 - (0.14 if subte else 0.0)
+            ax.text(cx, yc, txt, ha="center", va="center", fontsize=fs,
+                    color="#111", linespacing=0.9, clip_on=True)
+
+    fig.text(0.5, 1 - CFG.margin_top_mm / CFG.page_h_mm / 2, f"{page_no} · líneas",
+             ha="center", va="center", fontsize=10, weight="bold")
+    fig.text(0.5, CFG.margin_bottom_mm / CFG.page_h_mm / 2,
+             f"Líneas por celda (misma grilla que el mapa pág. {page_no}). "
+             "Número = colectivo · letra de color = subte.",
+             ha="center", va="center", fontsize=4)
+    out = CFG.pages_dir / f"{page_no:02d}_lines.pdf"
+    fig.savefig(out)
+    plt.close(fig)
+    return out
+
+
 def render_all():
-    pages = load_grid()["pages"]
+    grid = load_grid()
+    pages, cells = grid["pages"], grid["cells"]
     layers = _load_layers()
+    c2l_path = CFG.output_dir / "cell_to_lines.json"
+    lines_by_ref = {}
+    if c2l_path.exists():
+        lines_by_ref = json.loads(c2l_path.read_text(encoding="utf-8"))["cells"]
+    else:
+        print("[render] WARNING cell_to_lines.json missing; skipping line pages")
+
     outs = []
     for _, prow in pages.iterrows():
         page_no = int(prow["page"])
         outs.append(render_page(page_no, prow.geometry, layers))
-    print(f"[render] {len(outs)} pages -> {CFG.pages_dir}")
+        if lines_by_ref:
+            page_cells = cells[cells["page"] == page_no]
+            outs.append(render_transit_page(page_no, page_cells, lines_by_ref))
+    print(f"[render] {len(outs)} page PDFs (map + líneas) -> {CFG.pages_dir}")
     return outs
 
 

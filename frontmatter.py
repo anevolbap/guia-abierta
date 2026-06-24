@@ -81,6 +81,20 @@ def cover():
         Puntos de interés © OpenStreetMap contributors (ODbL).<br>
         Generado con software libre. Escala 1:{int(CFG.scale_denom)}.
       </p>
+    </div>
+    <div style='page-break-before: always'>
+      <h2>Cómo usar</h2>
+      <ol style='font-size:9.5pt; line-height:1.5'>
+        <li>Buscá tu calle en el <b>índice de calles</b>. Anotá la referencia,
+            por ejemplo <b>12-C4</b> (página 12, celda C4).</li>
+        <li>Andá a la <b>página del mapa</b> 12 y ubicá la celda C4 con las
+            letras (A-E) arriba y los números (1-7) al costado.</li>
+        <li>Pasá a la <b>página siguiente</b> (12 · líneas): tiene la misma
+            grilla. Leé la celda C4 y vas a ver las líneas que pasan por ahí.
+            Los números son colectivos; la letra de color es el subte.</li>
+      </ol>
+      <p class='muted'>Cada mapa va seguido de su grilla de líneas. El índice de
+      líneas (al final) hace el camino inverso: de una línea a sus celdas.</p>
     </div>"""
     return _render(body, "cover.pdf")
 

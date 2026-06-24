@@ -52,13 +52,11 @@ landmarks:
     hospital:    [["amenity", "hospital"]]
     parque:      [["leisure", "park"]]
     estadio:     [["leisure", "stadium"]]
-    cementerio:  [["landuse", "cemetery"]]
     estacion:    [["railway", "station"]]
     universidad: [["amenity", "university"]]
-    civico:      [["amenity", "townhall"], ["office", "government"]]
-  # These categories are kept only when big (parks/cemeteries are everywhere;
-  # we want Bosques de Palermo, not every named square).
-  large_only: ["parque", "cementerio"]
+  # Kept only when big (parks are everywhere; we want Bosques de Palermo, not
+  # every named square).
+  large_only: ["parque"]
   min_major_area_m2: 40000
 
 street_index:

@@ -4,12 +4,20 @@ Open-source, printable A5 PDF booklet for navigating Buenos Aires by colectivo
 and subte, in the style of the classic Guía T. Generated from open data,
 offline-final (no QR codes, no live lookups: the booklet is self-sufficient).
 
-The booklet is a grid of map pages plus indices. You look up a street or a
-landmark in the index, get a cell reference like `12-C4`, turn to that cell, and
-the cross-reference tells you which colectivo lines and subte lines pass through
-it. Map pages deliberately do **not** draw colectivo routes (137 lines would be
-spaghetti); the cell↔line index carries that information instead. Subte is the
-exception: 6 color-coded lines, drawn.
+It replicates the way the original Guía T is used:
+
+1. Look up your street in the **street index**, get a cell reference like
+   `12-C4` (page 12, cell C4).
+2. Turn to **map page 12** and find cell C4 (letters A-E across, numbers 1-7
+   down).
+3. Flip to the **facing page** (12 · líneas): same grid, and cell C4 lists the
+   lines passing through it. Numbers are colectivos, a coloured letter is the
+   subte.
+
+Every map page is followed by its line-grid page. Map pages deliberately do
+**not** draw colectivo routes (137 lines would be spaghetti); the facing
+line-grid carries that. Subte is the exception: 6 colour-coded lines, drawn on
+the map too. A line index at the back does the reverse lookup (line -> cells).
 
 ## Install
 
@@ -52,7 +60,7 @@ The default `config.yaml` runs in **MVP mode**: scoped to one barrio
 | 4 | `street_index.py` | `output/street_index.json` |
 | 5 | `landmarks.py` | `output/landmarks.json` |
 | 6 | `transit_index.py` | `output/line_to_cells.json`, `output/cell_to_lines.json` |
-| 7 | `render_pages.py` | `output/pages/NN.pdf` |
+| 7 | `render_pages.py` | `output/pages/NN.pdf` (map) + `NN_lines.pdf` (line grid) |
 | 8 | `frontmatter.py` | cover + index PDFs |
 | 9 | `assemble.py` | `output/guiat.pdf` |
 

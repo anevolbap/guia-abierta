@@ -17,7 +17,9 @@ Full CABA run (`mvp.enabled: false`):
 - 704 landmarks (hospitals + major: parks, stations, universities, civic).
 - 138 colectivo lines + 8 subte (A-E, H, 2 premetro); 842 cells with service.
   The coverage gate ([120,180] colectivo, >=6 subte) passes.
-- Final `output/guiat.pdf`: 152 pages (the street index dominates), A5 confirmed.
+- Every map page is followed by its line-grid page (the Guía T facing page).
+- Final `output/guiat.pdf`: 178 pages, A5 confirmed. Round-trip verified:
+  "CORRIENTES AV. 0-1000" -> cell 9-E4 -> buses 19/39/42/... + Subte B.
 
 MVP run (`mvp.enabled: true`, Palermo) for comparison: 4 map pages, 658 street
 entries, 62 landmarks, 24-page booklet.
@@ -158,6 +160,31 @@ These were the open questions in `PLAN.md`. Answers from the live downloads:
     `buffer(0)` in the work CRS, and `landmarks.fetch_osm_landmarks` runs
     `buffer(0)` again on the reprojected polygon before the Overpass call. This
     only bites in full-CABA mode (a single barrio reprojects clean).
+
+## Guía T workflow: facing line-grid page (third pass)
+
+16. **Each map page is followed by a line-grid page.** This is the core of how
+    the Guía T is used: street index -> cell ref (`12-C4`) -> map page 12 ->
+    facing page "12 · líneas" -> read cell C4 -> see the buses. `render_pages`
+    now emits `NN_lines.pdf` next to `NN.pdf`: the same A-E / 1-7 grid as the
+    map, each cell filled from `cell_to_lines.json` with colectivo numbers
+    (leading zeros stripped: `001` -> `1`) and subte as a coloured letter badge.
+    Assembly interleaves them for free: `sorted()` puts `01.pdf` before
+    `01_lines.pdf` before `02.pdf` because `.` (0x2E) sorts before `_` (0x5F).
+    A "Cómo usar" page on the cover spells out the three steps, and the back
+    line index still does the reverse lookup (line -> cells).
+
+    Limitation: cells on major-avenue corners carry 20-30 lines and get cramped
+    even at the smallest font. The original Guía T has the same dense cells.
+    Lowering `scale.denominator` (smaller cells, more pages) is the relief
+    valve.
+
+17. **All streets are labelled, bold, with a white halo.** The previous
+    length/proximity filters dropped some street names; usability needs every
+    street named. `_label_streets` now labels every distinct name on the page
+    (one label at its longest on-page run), bold, with a white `path_effects`
+    halo so the name reads against the street lines. Avenidas are larger and
+    blue. Cemeteries and civic buildings were dropped from the landmark set.
 
 ## Module map
 
