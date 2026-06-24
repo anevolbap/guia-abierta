@@ -1,4 +1,4 @@
-# Guía Bondi
+# Guía Abierta
 
 [Versión en español](README.md) · English
 

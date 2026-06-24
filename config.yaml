@@ -77,7 +77,7 @@ mvp:
 
 booklet:
   # Avoid "Guía T" (a commercial product name). This is an original open name.
-  title: "Guía Bondi"
+  title: "Guía Abierta"
   subtitle: "Colectivos y subte · Buenos Aires"
   edition: "Edición abierta"
 

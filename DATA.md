@@ -35,6 +35,7 @@ Atribución mínima a incluir si redistribuís el folleto:
 
 "Guía T" es un nombre comercial de larga data (la guía de bolsillo clásica), así
 que conviene **no** usarlo como nombre del proyecto. El nombre por defecto es
-**Guía Bondi** (configurable en `config.yaml` → `booklet.title`). Otras opciones
-sin conflicto evidente: *Bondiguía*, *Trama* (por la grilla), *Guía Abierta*,
-*Mapa Bondi*. "Guía T" se usa solo como referencia descriptiva del formato.
+**Guía Abierta** (configurable en `config.yaml` → `booklet.title`). Otras
+opciones sin conflicto evidente: *Bondiguía*, *Trama* (por la grilla), *Guía
+Bondi*, *Mapa Bondi*. "Guía T" se usa solo como referencia descriptiva del
+formato, no como marca.

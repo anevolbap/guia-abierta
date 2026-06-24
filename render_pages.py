@@ -220,12 +220,9 @@ def render_page(page_no, tile, layers):
 
     _draw_subgrid(fig)
 
-    # header + footer in figure coords
+    # page number (attribution lives on the cover, not on every map page)
     fig.text(0.5, 1 - CFG.margin_top_mm / CFG.page_h_mm / 2, str(page_no),
              ha="center", va="center", fontsize=11, weight="bold")
-    fig.text(0.5, CFG.margin_bottom_mm / CFG.page_h_mm / 2,
-             f"{CFG.title} · 1:{int(CFG.scale_denom)} · datos {CFG.datos_fecha} · "
-             "GCBA + OSM (ODbL) + AMBA (CC-BY)", ha="center", va="center", fontsize=4)
 
     out = CFG.pages_dir / f"{page_no:02d}.pdf"
     fig.savefig(out)
