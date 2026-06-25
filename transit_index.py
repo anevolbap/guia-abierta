@@ -34,6 +34,9 @@ LINE_COL_CANDIDATES = [
 DIR_COL_CANDIDATES = [
     "sentido", "SENTIDO", "Sentido", "direction", "ida_vuelta", "sent",
 ]
+RAMAL_COL_CANDIDATES = [
+    "Recorrido", "RECORRIDO", "recorrido", "ramal", "RAMAL", "Ramal", "ramal_desc",
+]
 
 
 # --------------------------------------------------------------------------
@@ -141,18 +144,25 @@ def colectivo_lines(clip_geom) -> dict[str, dict[str, object]]:
             f"no line column found in colectivos; columns={list(gdf.columns)}"
         )
     dir_col = _pick_col(gdf, DIR_COL_CANDIDATES)
+    ramal_col = _pick_col(gdf, RAMAL_COL_CANDIDATES)
+    if ramal_col == line_col:
+        ramal_col = None
     has_dir = dir_col is not None and gdf[dir_col].nunique(dropna=True) >= 2
+    has_ramal = ramal_col is not None and gdf[ramal_col].nunique(dropna=True) >= 1
     print(f"[transit] colectivo line_col={line_col!r} dir_col={dir_col!r} "
-          f"split_directions={has_dir}")
+          f"ramal_col={ramal_col!r} split_directions={has_dir}")
 
+    # group by line (+ ramal) (+ direction); key encodes "ramal::dir" so each
+    # ramal keeps its own route -- a wrong ramal is a wrong destination.
+    group_cols = [line_col] + ([ramal_col] if has_ramal else []) + ([dir_col] if has_dir else [])
     out: dict[str, dict[str, object]] = {}
-    if has_dir:
-        for (line, direction), grp in gdf.groupby([line_col, dir_col]):
-            d = _norm_dir(direction)
-            out.setdefault(str(line).strip(), {})[d] = unary_union(grp.geometry.values)
-    else:
-        for line, grp in gdf.groupby(line_col):
-            out[str(line).strip()] = {"merged": unary_union(grp.geometry.values)}
+    for keys, grp in gdf.groupby(group_cols):
+        vals = dict(zip(group_cols, keys if isinstance(keys, tuple) else (keys,), strict=True))
+        line = str(vals[line_col]).strip()
+        ramal = str(vals[ramal_col]).strip() if has_ramal else ""
+        d = _norm_dir(vals[dir_col]) if has_dir else "merged"
+        key = f"{ramal}::{d}" if has_ramal else d
+        out.setdefault(line, {})[key] = unary_union(grp.geometry.values)
     return out
 
 
