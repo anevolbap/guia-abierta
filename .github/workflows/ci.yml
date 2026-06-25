@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.24"
+
+      - name: Lint
+        run: uvx ruff check .
+
+      # Installs the locked deps (binary wheels, no system GDAL/Pango needed
+      # because the tests don't import WeasyPrint).
+      - name: Install
+        run: uv sync --frozen
+
+      - name: Test
+        run: uv run --frozen python -m unittest discover -s tests -v
