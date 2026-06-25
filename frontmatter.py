@@ -25,6 +25,7 @@ from weasyprint import HTML
 import fonts  # noqa: E402  registers bundled fonts for matplotlib
 from config import CFG
 from grid import load_boundary, load_grid
+from names import abbreviate
 
 NBSP = " "
 
@@ -90,13 +91,16 @@ img.overview {{ width:100%; }}
 
 /* line index: one column; "cartel de parada" sign floated so the route text
    wraps around and under it (no white space beside short rows). */
-.lrow {{ display:flow-root; padding:2px 1px; border-bottom:1px solid #E2D8C2;
-        break-inside:avoid; }}
+/* no break-inside:avoid -> a long entry may split across pages and fill the
+   bottom of each page instead of leaving it blank. */
+.lrow {{ display:flow-root; padding:2px 1px; border-bottom:1px solid #E2D8C2; }}
 .lrow__sign {{ position:relative; float:left; width:36px; margin:1px 7px 0 0; }}
 .lrow__signnum {{ position:absolute; left:0; right:0; top:0; height:78%;
                  display:flex; align-items:center; justify-content:center;
                  font-family:"Archivo Black"; line-height:1; letter-spacing:-.5px; }}
 .lrow__route {{ font-size:7.5px; line-height:1.24; color:#3A362C; }}
+.lrow__ramal {{ font-weight:700; font-size:7px; text-transform:uppercase;
+               letter-spacing:.4px; margin:2.5px 0 .5px; }}
 .lrow__line + .lrow__line {{ margin-top:1.5px; }}
 .lrow__dir {{ color:#A8895A; font-weight:700; font-size:6.3px; text-transform:uppercase;
              letter-spacing:.3px; }}
@@ -447,43 +451,44 @@ def _livery(line) -> tuple:
 
 
 def _clip_route(streets: list, cap: int = 6) -> str:
-    """Keep both ends (origin + destination matter for the ramal) and trim the
-    middle with an ellipsis, so routes stay one or two lines."""
+    """Abbreviate, keep both ends (origin + destination matter for the ramal),
+    and trim the middle with an ellipsis so routes stay short."""
     if len(streets) > cap:
         streets = streets[:cap - 1] + ["…", streets[-1]]
-    return " · ".join(s if s == "…" else s.title() for s in streets)
+    parts = [s if s == "…" else abbreviate(s).title() for s in streets]
+    return " · ".join(escape(p) for p in parts)
 
 
 def _route_rows(ln) -> str:
-    """one line per ramal+direction. Keys are "ramal::dir" (or plain "dir").
-    Ramal letter is shown only when a line has more than one ramal."""
+    """Each ramal on its own (header + its ida / vuelta routes). Keys are
+    "ramal::dir" (or plain "dir"). The ramal header shows only when a line has
+    more than one ramal."""
     routes = ln.get("routes") or {}
     by_ramal: dict = {}
     for key, streets in routes.items():
         ramal, d = key.split("::", 1) if "::" in key else ("", key)
         by_ramal.setdefault(ramal, {})[d] = streets
     multi = len(by_ramal) > 1
+    color = _livery(ln["line"])[0]
     rows = []
     for ramal in sorted(by_ramal):
         dirs = by_ramal[ramal]
+        if multi and ramal:
+            rows.append(f"<div class='lrow__ramal' style='color:{color}'>"
+                        f"Ramal {escape(ramal)}</div>")
         order = [k for k in ("ida", "vuelta") if k in dirs]
         order += [k for k in dirs if k not in ("ida", "vuelta")]
         for d in order:
             streets = dirs.get(d) or []
             if not streets:
                 continue
-            txt = escape(_clip_route(streets))
-            tag = []
-            if multi and ramal:
-                tag.append(f"R.{escape(ramal)}")
-            if d in ("ida", "vuelta"):
-                tag.append(d)
-            label = f"<span class='lrow__dir'>{' '.join(tag)}</span> " if tag else ""
-            rows.append(f"<div class='lrow__line'>{label}{txt}</div>")
+            label = (f"<span class='lrow__dir'>{escape(d)}</span> "
+                     if d in ("ida", "vuelta") else "")
+            rows.append(f"<div class='lrow__line'>{label}{_clip_route(streets)}</div>")
     if not rows:
         streets = ln.get("streets") or []
         if streets:
-            rows.append(f"<div class='lrow__line'>{escape(_clip_route(streets))}</div>")
+            rows.append(f"<div class='lrow__line'>{_clip_route(streets)}</div>")
     return "".join(rows)
 
 

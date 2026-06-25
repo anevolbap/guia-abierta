@@ -1,0 +1,55 @@
+# Street-name word abbreviations, shared by the map labels, the street index
+# and the colectivo route descriptions.
+#
+# key:   a whole word as it appears in the source names (case- and
+#        accent-insensitive, so "GENERAL", "General" and "general" all match).
+# value: what to print instead. Keep it UPPERCASE here; surfaces that need
+#        title case (the route lists) lower it themselves.
+#
+# Edit freely: add a line `WORD: ABBR.` to shorten any recurring word.
+# A trailing dot in the source word is ignored when matching.
+
+# --- ranks, titles, honorifics ---
+AVENIDA: AV.
+GENERAL: GRAL.
+PRESIDENTE: PRES.
+DOCTOR: DR.
+DOCTORA: DRA.
+CORONEL: CNEL.
+INTENDENTE: INT.
+GOBERNADOR: GOB.
+TENIENTE: TTE.
+SARGENTO: SGTO.
+COMANDANTE: CMTE.
+CAPITAN: CAP.
+BRIGADIER: BRIG.
+ALMIRANTE: ALTE.
+INGENIERO: ING.
+ARQUITECTO: ARQ.
+PROFESOR: PROF.
+PROFESORA: PROFA.
+MONSENOR: MONS.
+PRESBITERO: PBRO.
+NUESTRA: NTRA.
+SENORA: SRA.
+HERMANOS: HNOS.
+HERMANO: HNO.
+DIPUTADO: DIP.
+SENADOR: SEN.
+PERIODISTA: PER.
+MARISCAL: MCAL.
+VIRREY: VRREY.
+PASAJE: PJE.
+DIAGONAL: DIAG.
+
+# --- common given names abbreviated to an initial (extend as needed) ---
+# Only safe, unambiguous cases. Do NOT add "Jose"/"Juan" (would break
+# "San Jose", "San Juan").
+FEDERICO: F.
+BARTOLOME: B.
+BERNARDO: B.
+HIPOLITO: H.
+LEANDRO: L.
+NICOLAS: N.
+ESTANISLAO: E.
+COMODORO: COM.
