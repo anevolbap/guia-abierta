@@ -6,3 +6,6 @@ output/
 !output/.gitkeep
 cache/
 DECISIONS.md
+# copyrighted style references, kept locally only
+*.webp
+*.zip

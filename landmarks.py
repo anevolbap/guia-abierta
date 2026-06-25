@@ -81,7 +81,7 @@ def subte_stations() -> gpd.GeoDataFrame:
     # parent stations only when present, else all stops
     if "location_type" in stops.columns and (stops["location_type"] == 1).any():
         stops = stops[stops["location_type"] == 1]
-    geom = [Point(xy) for xy in zip(stops["stop_lon"], stops["stop_lat"])]
+    geom = [Point(xy) for xy in zip(stops["stop_lon"], stops["stop_lat"], strict=True)]
     gdf = gpd.GeoDataFrame(
         {"name": stops["stop_name"].astype(str), "category": "estacion_subte"},
         geometry=geom,

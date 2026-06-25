@@ -68,7 +68,7 @@ class Config:
     pages_dir: Path = ROOT / "output" / "pages"
 
     @classmethod
-    def load(cls, path: Path = CONFIG_PATH) -> "Config":
+    def load(cls, path: Path = CONFIG_PATH) -> Config:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
         c = cls(raw=raw)
         crs = raw.get("crs", {})
