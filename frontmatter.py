@@ -104,6 +104,7 @@ img.overview {{ width:100%; }}
 .lrow__line + .lrow__line {{ margin-top:1.5px; }}
 .lrow__dir {{ color:#A8895A; font-weight:700; font-size:6.3px; text-transform:uppercase;
              letter-spacing:.3px; }}
+.lrow__ref {{ color:#9A9384; }}
 """
 
 
@@ -450,19 +451,61 @@ def _livery(line) -> tuple:
     return roof, stripe
 
 
-def _clip_route(streets: list, cap: int = 6) -> str:
-    """Abbreviate, keep both ends (origin + destination matter for the ramal),
-    and trim the middle with an ellipsis so routes stay short."""
-    if len(streets) > cap:
-        streets = streets[:cap - 1] + ["…", streets[-1]]
-    parts = [s if s == "…" else abbreviate(s).title() for s in streets]
-    return " · ".join(escape(p) for p in parts)
+def _streets_text(streets: list) -> str:
+    """Full route, abbreviated, no truncation."""
+    return " · ".join(escape(abbreviate(s).title()) for s in streets)
+
+
+def _common_run(a: list, b: list) -> tuple:
+    """Longest contiguous sublist shared by a and b -> (length, start_in_a,
+    start_in_b)."""
+    n, m = len(a), len(b)
+    dp = [0] * (m + 1)
+    best = (0, 0, 0)
+    for i in range(1, n + 1):
+        ndp = [0] * (m + 1)
+        for j in range(1, m + 1):
+            if a[i - 1] == b[j - 1]:
+                ndp[j] = dp[j - 1] + 1
+                if ndp[j] > best[0]:
+                    best = (ndp[j], i - ndp[j], j - ndp[j])
+        dp = ndp
+    return best
+
+
+def _merge_ranges(ranges: list) -> list:
+    out = []
+    for s, length in sorted(set(ranges)):
+        if out and s <= out[-1][0] + out[-1][1]:
+            ps, pl = out[-1]
+            out[-1] = (ps, max(ps + pl, s + length) - ps)
+        else:
+            out.append((s, length))
+    return out
+
+
+def _with_brackets(streets: list, ranges: list) -> str:
+    """Render streets, wrapping the given [start, length] runs in brackets."""
+    ranges = _merge_ranges(ranges)
+    starts = dict(ranges)
+    parts, pos, n = [], 0, len(streets)
+    while pos < n:
+        if pos in starts:
+            length = starts[pos]
+            parts.append(f"[ {_streets_text(streets[pos:pos + length])} ]")
+            pos += length
+        else:
+            nxt = min([s for s in starts if s > pos] + [n])
+            parts.append(_streets_text(streets[pos:nxt]))
+            pos = nxt
+    return " · ".join(parts)
 
 
 def _route_rows(ln) -> str:
-    """Each ramal on its own (header + its ida / vuelta routes). Keys are
-    "ramal::dir" (or plain "dir"). The ramal header shows only when a line has
-    more than one ramal."""
+    """Each ramal on its own (header + ida / vuelta), full routes (no truncation).
+    Ramales/directions share a common trunk; the longest run a route shares with
+    an earlier one is wrapped in brackets there and shown as "[…]" here, so the
+    shared corridor is written once."""
     routes = ln.get("routes") or {}
     by_ramal: dict = {}
     for key, streets in routes.items():
@@ -470,25 +513,55 @@ def _route_rows(ln) -> str:
         by_ramal.setdefault(ramal, {})[d] = streets
     multi = len(by_ramal) > 1
     color = _livery(ln["line"])[0]
-    rows = []
+
+    seq = []  # (ramal, dir, streets) in print order
     for ramal in sorted(by_ramal):
         dirs = by_ramal[ramal]
-        if multi and ramal:
-            rows.append(f"<div class='lrow__ramal' style='color:{color}'>"
-                        f"Ramal {escape(ramal)}</div>")
         order = [k for k in ("ida", "vuelta") if k in dirs]
         order += [k for k in dirs if k not in ("ida", "vuelta")]
         for d in order:
             streets = dirs.get(d) or []
-            if not streets:
-                continue
-            label = (f"<span class='lrow__dir'>{escape(d)}</span> "
-                     if d in ("ida", "vuelta") else "")
-            rows.append(f"<div class='lrow__line'>{label}{_clip_route(streets)}</div>")
+            if streets:
+                seq.append((ramal, d, streets))
+
+    # plan rendering: a route shares its longest run with an earlier "reference"
+    # route -> that run is a placeholder here and gets bracketed in the reference.
+    refs = []  # {"i": plan index, "streets": list, "brackets": [(start, len)]}
+    plans = []
+    for ramal, d, streets in seq:
+        best = (0, 0, 0, None)  # len, start_here, start_there, ref
+        for ref in refs:
+            length, si, ri = _common_run(streets, ref["streets"])
+            if length > best[0]:
+                best = (length, si, ri, ref)
+        if best[0] >= 4:
+            length, si, ri, ref = best
+            ref["brackets"].append((ri, length))
+            plans.append((ramal, d, "ph", streets[:si], streets[si + length:]))
+        else:
+            refs.append({"i": len(plans), "streets": streets, "brackets": []})
+            plans.append((ramal, d, "full", streets, None))
+    brackets_for = {ref["i"]: ref["brackets"] for ref in refs}
+
+    rows, last_ramal = [], None
+    for idx, (ramal, d, mode, a, b) in enumerate(plans):
+        if multi and ramal and ramal != last_ramal:
+            rows.append(f"<div class='lrow__ramal' style='color:{color}'>"
+                        f"Ramal {escape(ramal)}</div>")
+            last_ramal = ramal
+        if mode == "ph":
+            segs = ([_streets_text(a)] if a else []) + ["<span class='lrow__ref'>[…]</span>"]
+            segs += [_streets_text(b)] if b else []
+            body = " · ".join(segs)
+        else:
+            body = _with_brackets(a, brackets_for.get(idx, []))
+        label = (f"<span class='lrow__dir'>{escape(d)}</span> "
+                 if d in ("ida", "vuelta") else "")
+        rows.append(f"<div class='lrow__line'>{label}{body}</div>")
     if not rows:
         streets = ln.get("streets") or []
         if streets:
-            rows.append(f"<div class='lrow__line'>{_clip_route(streets)}</div>")
+            rows.append(f"<div class='lrow__line'>{_streets_text(streets)}</div>")
     return "".join(rows)
 
 
