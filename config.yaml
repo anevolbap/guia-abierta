@@ -44,10 +44,6 @@ modes:
   subte: true
   bici: true
 
-street_index:
-  # Hide cemetery internal streets (e.g. "CALLE 50 - CEMENTERIO CHACARITA").
-  hide_cemetery_streets: true
-
 coverage_gate:
   # transit_index fails loudly if these are not met (wrong feed symptom).
   colectivo_min_lines: 120
@@ -74,6 +70,8 @@ street_index:
   # bucket gets one entry per bucket (e.g. "SANTA FE, AV. 1000-2000"). Streets
   # inside a single bucket (or with no numbering) stay a single entry.
   number_bucket_step: 1000
+  # Hide cemetery internal streets (e.g. "CALLE 50 - CEMENTERIO CHACARITA").
+  hide_cemetery_streets: true
 
 mvp:
   # When enabled, scope everything to a single barrio and a page cap.
