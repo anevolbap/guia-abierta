@@ -13,15 +13,14 @@ feed (the ~27-line city colectivo feed instead of the ~137-line AMBA one).
 from __future__ import annotations
 
 import json
+import math
 import zipfile
 from pathlib import Path
-
-import math
 
 import geopandas as gpd
 import pandas as pd
 from shapely import STRtree
-from shapely.geometry import MultiLineString, Point
+from shapely.geometry import MultiLineString
 from shapely.ops import linemerge, unary_union
 
 from config import CFG
@@ -195,7 +194,7 @@ def subte_lines() -> dict[str, dict[str, object]]:
     # one LineString per shape_id (ordered by sequence), in WGS84
     geom_by_shape: dict[object, object] = {}
     for shape_id, grp in shapes.sort_values("shape_pt_sequence").groupby("shape_id"):
-        pts = list(zip(grp["shape_pt_lon"], grp["shape_pt_lat"]))
+        pts = list(zip(grp["shape_pt_lon"], grp["shape_pt_lat"], strict=True))
         if len(pts) >= 2:
             geom_by_shape[shape_id] = LineString(pts)
 
@@ -204,7 +203,7 @@ def subte_lines() -> dict[str, dict[str, object]]:
         geometry=list(geom_by_shape.values()),
         crs=CFG.crs_geo,
     ).to_crs(CFG.crs_work)
-    geom_by_shape = dict(zip(shp["shape_id"], shp.geometry))
+    geom_by_shape = dict(zip(shp["shape_id"], shp.geometry, strict=True))
 
     has_dir = "direction_id" in trips.columns and trips["direction_id"].nunique(dropna=True) >= 2
     cols = ["route_id", "shape_id"] + (["direction_id"] if has_dir else [])
@@ -331,11 +330,14 @@ def build_transit_index() -> dict:
         kept = 0
         for line, dirs in source.items():
             directions = {}
+            routes = {}
             seqs = []
             for dname, geom in dirs.items():
                 refs = order_cells_along(geom, cells, sindex)
                 directions[dname] = refs
-                seqs.append(route_streets(geom, geoms, names, tree))
+                streets = route_streets(geom, geoms, names, tree)
+                routes[dname] = streets
+                seqs.append(streets)
                 for ref in refs:
                     tag = {"mode": mode, "line": line}
                     bucket = cell_to_lines.setdefault(ref, [])
@@ -346,7 +348,7 @@ def build_transit_index() -> dict:
                 continue
             kept += 1
             lines_out.append({"mode": mode, "line": line, "directions": directions,
-                              "streets": _merge_route_streets(seqs)})
+                              "routes": routes, "streets": _merge_route_streets(seqs)})
         return kept
 
     n_col = n_sub = 0

@@ -95,7 +95,10 @@ img.overview {{ width:100%; }}
 .lrow__signnum {{ position:absolute; left:0; right:0; top:0; height:78%;
                  display:flex; align-items:center; justify-content:center;
                  font-family:"Archivo Black"; line-height:1; letter-spacing:-.5px; }}
-.lrow__route {{ flex:1; min-width:0; font-size:8.5px; line-height:1.3; color:#3A362C; }}
+.lrow__route {{ flex:1; min-width:0; font-size:8px; line-height:1.28; color:#3A362C; }}
+.lrow__line + .lrow__line {{ margin-top:2px; }}
+.lrow__dir {{ color:#A8895A; font-weight:700; font-size:6.5px; text-transform:uppercase;
+             letter-spacing:.4px; }}
 """
 
 
@@ -442,12 +445,26 @@ def _livery(line) -> tuple:
     return roof, stripe
 
 
-def _route_text(ln) -> str:
-    streets = ln.get("streets") or []
-    if streets:
-        return " · ".join(s.title() for s in streets)
-    cells = sorted({c for refs in ln["directions"].values() for c in refs})
-    return " · ".join(cells)
+def _route_rows(ln) -> str:
+    """one line per direction (ida / vuelta, then any ramal); merged as fallback."""
+    routes = ln.get("routes") or {}
+    order = [k for k in ("ida", "vuelta") if k in routes]
+    order += [k for k in routes if k not in ("ida", "vuelta", "merged")]
+    rows = []
+    for dname in order:
+        streets = routes.get(dname) or []
+        if not streets:
+            continue
+        txt = escape(" · ".join(s.title() for s in streets))
+        label = (f"<span class='lrow__dir'>{escape(dname)}</span> "
+                 if dname in ("ida", "vuelta") else "")
+        rows.append(f"<div class='lrow__line'>{label}{txt}</div>")
+    if not rows:
+        streets = ln.get("streets") or routes.get("merged") or []
+        if streets:
+            rows.append(f"<div class='lrow__line'>"
+                        f"{escape(' · '.join(s.title() for s in streets))}</div>")
+    return "".join(rows)
 
 
 def _bus_row(ln) -> str:
@@ -463,8 +480,7 @@ def _bus_row(ln) -> str:
         <rect x="5" y="5" width="46" height="23" rx="3" fill="none" stroke="{c}" stroke-width=".7" opacity=".45"></rect>
       </svg>
       <div class="lrow__signnum" style="color:{c}; font-size:{fs}px;">{num}</div></div>"""
-    route = escape(_route_text(ln))
-    return f'<div class="lrow">{sign}<div class="lrow__route">{route}</div></div>'
+    return f'<div class="lrow">{sign}<div class="lrow__route">{_route_rows(ln)}</div></div>'
 
 
 def line_index_pdf():

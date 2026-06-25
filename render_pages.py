@@ -57,8 +57,8 @@ def _load_layers():
     subte_geo = {}
     stations = None
     if CFG.modes.get("subte", True):
-        from transit_index import subte_lines
         from landmarks import subte_stations
+        from transit_index import subte_lines
 
         for line, dirs in subte_lines().items():
             from shapely.ops import unary_union
@@ -121,6 +121,24 @@ def _draw_gutter_labels(fig):
         over.text(L - 0.006, y, CFG.row_labels[r], ha="right", va="center",
                   fontsize=GUIA["fs_gutter"], weight="bold", color=GUIA["muted"])
     return over
+
+
+def _draw_folio(fig, page_no):
+    """Small page number in the top-right margin (no header band)."""
+    x = (CFG.margin_left_mm + CFG.map_w_mm) / CFG.page_w_mm
+    y = 1 - CFG.margin_top_mm / CFG.page_h_mm * 0.42
+    fig.text(x, y, str(page_no), ha="right", va="center", fontsize=10,
+             fontfamily="Archivo Black", color=GUIA["accent"])
+
+
+def _inward_anchor(pt, bounds):
+    """Anchor a label so it grows toward the page centre, never off the box."""
+    x0, y0, x1, y1 = bounds
+    fx = (pt.x - x0) / (x1 - x0) if x1 > x0 else 0.5
+    fy = (pt.y - y0) / (y1 - y0) if y1 > y0 else 0.5
+    ha = "right" if fx > 0.62 else "left"
+    va = "top" if fy > 0.72 else "bottom"
+    return ha, va, (-2 if ha == "right" else 2, -2 if va == "top" else 2)
 
 
 def _longest_line(geom):
@@ -241,8 +259,9 @@ def render_page(page_no, tile, layers):
             ax.plot(s.geometry.x, s.geometry.y, "o", ms=GUIA["station_size"],
                     mfc=GUIA["station_face"], mec=GUIA["station_ring"],
                     mew=GUIA["station_ring_lw"], zorder=Z["stations"])
+            ha, va, off = _inward_anchor(s.geometry, bounds)
             ax.annotate(str(s["name"]), (s.geometry.x, s.geometry.y),
-                        xytext=(2, 2), textcoords="offset points",
+                        xytext=off, textcoords="offset points", ha=ha, va=va,
                         fontsize=GUIA["fs_station"], color=GUIA["park_label"],
                         zorder=Z["labels"], path_effects=_HALO)
 
@@ -256,16 +275,14 @@ def render_page(page_no, tile, layers):
         for _, p in pts.iterrows():
             rp = p.geometry.representative_point()
             ax.plot(rp.x, rp.y, "s", ms=2.4, color=GUIA["accent"], zorder=Z["stations"])
-            ax.annotate(str(p["name"]), (rp.x, rp.y), xytext=(2, 2),
-                        textcoords="offset points", fontsize=GUIA["fs_station"],
-                        color=GUIA["ink"], zorder=Z["labels"], path_effects=_HALO)
+            ha, va, off = _inward_anchor(rp, bounds)
+            ax.annotate(str(p["name"]), (rp.x, rp.y), xytext=off,
+                        textcoords="offset points", ha=ha, va=va,
+                        fontsize=GUIA["fs_station"], color=GUIA["ink"],
+                        zorder=Z["labels"], path_effects=_HALO)
 
     _draw_gutter_labels(fig)
-
-    # folio (page number) in the header band, Archivo Black, accent
-    fig.text(0.5, 1 - CFG.margin_top_mm / CFG.page_h_mm / 2, str(page_no),
-             ha="center", va="center", fontsize=GUIA["fs_folio"],
-             fontfamily="Archivo Black", color=GUIA["accent"])
+    _draw_folio(fig, page_no)
 
     out = CFG.pages_dir / f"{page_no:02d}.pdf"
     fig.savefig(out)
@@ -356,10 +373,7 @@ def render_transit_page(page_no, page_cells, lines_by_ref):
             ax.text(cx, top, txt, ha="center", va="top", fontsize=fs,
                     color=GUIA["cell_text"], linespacing=1.12, clip_on=True)
 
-    # folio, Archivo Black accent, in the header band (matches the map page)
-    fig.text(0.5, 1 - CFG.margin_top_mm / CFG.page_h_mm / 2, str(page_no),
-             ha="center", va="center", fontsize=GUIA["fs_folio"],
-             fontfamily="Archivo Black", color=GUIA["accent"])
+    _draw_folio(fig, page_no)
     out = CFG.pages_dir / f"{page_no:02d}_lines.pdf"
     fig.savefig(out)
     plt.close(fig)

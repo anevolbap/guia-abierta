@@ -13,10 +13,10 @@ page:
   # (ratio 0.639). Smaller than A5, closer to the real Guía T pocket size.
   width_mm: 121.71
   height_mm: 190.5
-  # Printable map window inside the page (leaves room for margins + header).
+  # Printable map window inside the page (margins only, no header band).
   margin_left_mm: 6
   margin_right_mm: 4
-  margin_top_mm: 12      # header band: page number + neighbour refs
+  margin_top_mm: 8       # small folio (page number) sits here, top-right
   margin_bottom_mm: 8    # footer band: scale bar + attribution
 
 scale:
