@@ -85,6 +85,13 @@ def build_street_index() -> dict:
     keep = [name_col, *have_alt, calles.geometry.name]
     calles = calles[keep].copy()
     calles = calles[calles[name_col].notna()]
+
+    # drop unnamed streets, and (by default) cemetery internal streets
+    nom_u = calles[name_col].astype(str).str.upper()
+    drop = nom_u.str.contains("SIN NOMBRE OFICIAL", na=False)
+    if CFG.raw.get("street_index", {}).get("hide_cemetery_streets", True):
+        drop |= nom_u.str.contains("CEMENTERIO", na=False)
+    calles = calles[~drop]
     calles["__low"] = calles.apply(_segment_low, axis=1) if have_alt else None
 
     joined = gpd.sjoin(calles, cells[["ref", "geometry"]], predicate="intersects")
