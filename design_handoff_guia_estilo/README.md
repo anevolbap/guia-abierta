@@ -54,6 +54,27 @@ The **map page is a stylized reference only** — you draw real reprojected geo,
 `A #34B6E4 · B #E2231A · C #163F8C · D #00925A · E #6C3A93 · H #F4C500`
 Badge: rounded square (radius 3px), Archivo Black letter, white text (H uses ink `#1C1A15`).
 
+### Train (Tren) line colors — stylized, replace with official GTFS route_color if available
+`Mitre #16A085 · Sarmiento #E8552D · Roca #1F5FB0 · San Martín #C0392B · Belgrano Norte #2E9E4B · Belgrano Sur #7E3F98 · Urquiza #E8902B`
+Shown on the cover as small pill chips (colored dot + name). These belong on the **WeasyPrint** surface.
+
+### Pocket density (important)
+This edition is sized to **carry comfortably**, so the street index and line index run SMALL and dense:
+- Street index: **4 columns** (like the original Guía T), name **7.5px / 700**, range+cells **7px**, row gap ~2px, `line-height:1.16`. (WeasyPrint: `column-count:4`, `column-gap:12px`, `break-inside:avoid`.)
+- **Group by street name — never repeat the name.** Collapse the per-address-range rows of one street into a single entry: name once, then each `{range cells}` segment. Separate segments with a faint middot `·` (`#C7BCA3`) — the "invisible bullets". Range in muted `#A89F8C`, cells in accent `#ED5B2A` bold. Keep each segment `white-space:nowrap` so it wraps as a unit, not mid-ref.
+- Pre-trim long street names (drop `(NO OFICIAL)`, collapse `Av.`/`Gral.`, cap ~24 chars) to avoid ugly wraps. Pack columns full — bias to more entries at small size, not white space.
+
+### Bus line index — line-art colectivo + inverted-pentagon route sign
+Mirrors the original Guía's printed look (refs: `silueta-bondi.png`, `numero-bondi.png`). Each line is a small framed card (cream `#FBF8F0`, double border: outer `#D8C9A6`, inner gold hairline `#EAD9AC`) holding:
+- an **inverted-pentagon route sign** (home-plate, point down) filled with the line's color, thin white inner keyline, ink `#1C1A15` outline, white Archivo Black numeral in the square upper part. This replaces the earlier bracketed plate.
+- a **line-art side-view colectivo** copied from the real reference: long low body, ink outline `#1C1A15` (1.7px) on near-white `#FCFAF3`, TWO window rows (small clerestory vents above the main glazing), raked front windshield, glass `#BFD8E0`, front + middle doors, dark destination blind with the line number, two big **hollow** wheels (dark tire, light hub). Livery shows as a **beltline stripe at the window sill + a thin lower skirt line** (NOT a colored roof — that was the earlier mistake).
+- **recorrido** below as `cabecera → cabecera`, ellipsis-clamped per end (arrow takes the line color).
+
+Liveries (roof / stripe) — **representative, confirm per operating company before press.** Only the **60** is sourced (Micro Omnibus Norte: soft-yellow base, red stripe, night-blue roof → roof `#16306B`, stripe `#C8202A`, base `#F4D03F`). Others approximate: 15 `#15448F`/`#E2231A` · 19 `#1E7A3E`/`#F4C20D` · 29 `#B11E2A`/`#E8902B` · 107 `#E8702A`/`#15346B` · 114 `#00838F`/`#F4C20D` · 130 `#1F3A6E`/`#E8902B` · 133 `#1E7A46`/`#C8202A` · 152 `#15346B`/`#C8202A` · 160 `#7A1F2B`/`#E8B23A` · 166 `#5E3A8C`/`#F4C20D` · 168 `#0E7C7B`/`#E8902B`. Glass `#BFD8E0`. Source liveries per line from busarg.com.ar (per-company libreas) when generating for real. This is a **WeasyPrint** page — bus + plate are inline SVG, fully reproducible in HTML/CSS.
+
+### Cover — light & porteña
+The cover is **light, not dark**: warm paper `#EFE7D3` with a **celeste sky** gradient up top (`#C5E0EC → #EFE7D3`) behind the title, a **Sol de Mayo** (gold `#E6A92C`, rayed) in the top-right corner, the Archivo Black title in ink `#1C1A15`, a celeste/orange/gold rule (`#4E9CC2` / `#ED5B2A` / `#E0A82E`), and a small **fileteado porteño** flourish (symmetric scrollwork in celeste + bordó `#B11E2A` + gold). The Buenos Aires **skyline frieze** (Obelisco, Congreso & Planetario domes, Torre Monumental, Kavanagh-style tower) sits at the bottom as an ink `#2A2620` silhouette on a faint celeste ground line, with gold lit windows and a small orange colectivo + green tren on the street line. Subte chips keep their colors; tren chips become light pills (`#E7DCC2`) with colored dots + dark text. This is the **WeasyPrint** cover — all inline SVG/CSS.
+
 ### Type
 - **Archivo Black** — cover title, section folio numbers, index letter-tab, subte badges, step-number chips.
 - **Public Sans** — everything else. Weights used: 400 / 500 / 600 / 700.

@@ -1,16 +1,20 @@
 """Cover + indices via WeasyPrint (HTML/CSS -> PDF).
 
-Styled from design_handoff_guia_estilo/frontmatter.css (the "WeasyPrint
-surface"). Pixel values are at the 460x720 px design reference, which is exactly
-the booklet trim (121.71 x 190.5 mm @96dpi), so they port 1:1.
+Styled from design_handoff_guia_estilo (the "WeasyPrint surface"): light
+"porteña" cover, cómo-usar with a gutter mini-grid, 4-column grouped street
+index, and a line-art colectivo line index (pentagon route sign + bus
+illustration). Pixel values are at the 460x720 px design reference, which is
+exactly the booklet trim (121.71 x 190.5 mm @96dpi), so they port 1:1.
 
 Builds: cover.pdf (cover + cómo usar), overview.pdf, street_index.pdf,
 line_index.pdf.
 """
 from __future__ import annotations
 
+import colorsys
 import json
 import unicodedata
+import zlib
 from html import escape
 
 import matplotlib
@@ -23,8 +27,10 @@ from weasyprint import HTML
 from config import CFG
 from grid import load_boundary, load_grid
 
+NBSP = " "
+
 # --------------------------------------------------------------------------
-# design tokens + classes (ported from frontmatter.css)
+# design tokens
 # --------------------------------------------------------------------------
 TOK = {
     "paper": "#F5F2EA", "panel": "#EDE7D8", "panel_border": "#DED7C6",
@@ -33,8 +39,25 @@ TOK = {
     "accent": "#ED5B2A", "hairline": "#DAD3C4", "column_rule": "#E4DDCE",
 }
 SUBTE_HEX = {"A": "#34B6E4", "B": "#E2231A", "C": "#163F8C", "D": "#00925A",
-             "E": "#6C3A93", "H": "#F4C500", "PM-C": "#00925A", "PM-S": "#00925A"}
+             "E": "#6C3A93", "H": "#F4C500"}
+TREN = [("Mitre", "#16A085"), ("Sarmiento", "#E8552D"), ("Roca", "#1F5FB0"),
+        ("San Martín", "#C0392B"), ("Belgrano N", "#2E9E4B"),
+        ("Belgrano S", "#7E3F98"), ("Urquiza", "#E8902B")]
 
+# Representative liveries (roof, stripe) from the handoff. Others synthesized.
+LIVERY = {
+    "15": ("#15448F", "#E2231A"), "19": ("#1E7A3E", "#F4C20D"),
+    "29": ("#B11E2A", "#E8902B"), "60": ("#16306B", "#C8202A"),
+    "107": ("#E8702A", "#15346B"), "114": ("#00838F", "#F4C20D"),
+    "130": ("#1F3A6E", "#E8902B"), "133": ("#1E7A46", "#C8202A"),
+    "152": ("#15346B", "#C8202A"), "160": ("#7A1F2B", "#E8B23A"),
+    "166": ("#5E3A8C", "#F4C20D"), "168": ("#0E7C7B", "#E8902B"),
+}
+GLASS = "#BFD8E0"
+
+# --------------------------------------------------------------------------
+# CSS for the data-driven index pages (cover + cómo-usar are inline-styled)
+# --------------------------------------------------------------------------
 DESIGN_CSS = f"""
 {fonts.css_font_face()}
 :root {{
@@ -44,72 +67,53 @@ DESIGN_CSS = f"""
   --accent:{TOK['accent']}; --hairline:{TOK['hairline']}; --column-rule:{TOK['column_rule']};
 }}
 * {{ box-sizing: border-box; }}
-body {{ margin:0; font-family:"Public Sans", sans-serif; color:var(--ink); }}
+body {{ margin:0; font-family:"Public Sans", sans-serif; color:var(--ink); -weasy-hyphens:none; }}
 .page {{ width:460px; height:720px; overflow:hidden; position:relative;
-        page-break-after:always; background:var(--paper); }}
+        page-break-after:always; }}
 .kicker {{ font-size:11px; font-weight:700; letter-spacing:1.5px;
           text-transform:uppercase; color:var(--accent); }}
+.nw {{ white-space:nowrap; }}
 
-/* cover */
-.cover {{ background:var(--ink-deep); color:var(--cream);
-         padding:38px 34px 32px; display:flex; flex-direction:column;
-         justify-content:space-between; }}
-.cover__fishnet {{ position:absolute; inset:0; pointer-events:none;
-  background-image:
-    repeating-linear-gradient(90deg, rgba(237,91,42,.10) 0 1px, transparent 1px 20%),
-    repeating-linear-gradient(0deg,  rgba(237,91,42,.08) 0 1px, transparent 1px 14.285%); }}
-.cover__row {{ position:relative; display:flex; align-items:center; justify-content:space-between; }}
-.cover__edmark {{ font-size:10px; letter-spacing:1.5px; color:#7C766A; }}
-.cover__sub {{ font-size:13px; font-weight:600; letter-spacing:.5px; color:#A49C8A; margin-bottom:14px; }}
-.cover__title {{ font-family:"Archivo Black"; font-size:88px; line-height:.84;
-                letter-spacing:-3px; color:var(--cream); margin:0; position:relative; }}
-.cover__rule {{ width:60px; height:5px; background:var(--accent); margin:24px 0 18px; position:relative; }}
-.cover__tag {{ font-size:15px; line-height:1.45; color:#C9C2B1; max-width:300px; position:relative; }}
-.cover__chips {{ display:flex; position:relative; }}
-.cover__chips > * {{ margin-right:7px; }}
-.chip {{ width:34px; height:34px; border-radius:7px; display:flex;
-        align-items:center; justify-content:center;
-        font-family:"Archivo Black"; font-size:16px; color:#fff; }}
-.cover__foot {{ border-top:1px solid #2E2A20; padding-top:14px; display:flex;
-               justify-content:space-between; align-items:flex-end; position:relative; }}
-.cover__credits {{ font-size:9.5px; line-height:1.6; color:#7C766A; }}
-.cover__scale {{ font-size:9.5px; line-height:1.5; color:#A49C8A; text-align:right; white-space:nowrap; }}
-
-/* cómo usar */
-.como {{ padding:40px 38px 30px; display:flex; flex-direction:column; height:720px; }}
-.como__title {{ font-family:"Archivo Black"; font-size:40px; letter-spacing:-1.5px;
-               line-height:1; color:var(--ink); margin:6px 0 0; }}
-.rule {{ width:100%; height:1px; background:var(--hairline); margin:14px 0 22px; }}
-.step {{ display:flex; margin-bottom:22px; }}
-.step__n {{ flex:none; width:30px; height:30px; background:var(--ink-deep);
-           color:var(--cream); font-family:"Archivo Black"; font-size:15px;
-           display:flex; align-items:center; justify-content:center; margin-right:16px; }}
-.step__t {{ font-size:16px; font-weight:700; color:var(--ink); margin-bottom:4px; }}
-.step__d {{ font-size:13.5px; line-height:1.5; color:var(--body); }}
-.como__inset {{ margin-top:auto; background:var(--panel); border:1px solid var(--panel-border);
-               padding:18px; display:flex; align-items:center; }}
-.minigrid {{ border-collapse:collapse; border:1px solid #C7BEA9; margin-right:18px; }}
-.minigrid td {{ width:22px; height:22px; border:1px solid #C7BEA9; padding:0; }}
-.minigrid td.hit {{ background:var(--accent); }}
-.inset__cap {{ font-size:11px; color:var(--body); line-height:1.5; }}
-.inset__cap b {{ font-family:"Archivo Black"; color:var(--ink-deep); font-weight:400; }}
-
-/* índice (calles + líneas) */
-.idx-head {{ margin-bottom:10px; }}
-.idx-sub {{ font-size:11px; color:var(--muted); margin-top:2px; }}
-.indice__cols {{ column-count:2; column-gap:26px; column-rule:1px solid var(--column-rule); }}
-.grp {{ font-family:"Archivo Black"; font-size:30px; line-height:.9; color:var(--ink-deep);
-        margin:8px 0 4px; break-inside:avoid; break-after:avoid; }}
-.entry {{ break-inside:avoid; margin-bottom:6px; line-height:1.25; }}
-.entry__name {{ font-size:11.5px; font-weight:600; color:var(--ink); }}
-.ref {{ font-size:10.5px; white-space:nowrap; margin-right:4px; }}
-.ref__p {{ font-weight:700; color:var(--accent); }}
-.ref__c {{ color:var(--muted-2); }}
-.lrow {{ break-inside:avoid; margin-bottom:7px; line-height:1.3; }}
-.lbadge {{ font-family:"Archivo Black"; font-size:12px; border-radius:4px;
-          padding:1px 6px; margin-right:6px; color:#fff; }}
-.lroute {{ font-size:10px; color:var(--body); }}
+/* shared index header */
+.idx-head {{ display:flex; align-items:flex-start; justify-content:space-between; }}
+.idx-sub {{ font-size:10.5px; color:var(--muted); margin-top:4px; }}
+.idx-rule {{ width:100%; height:1px; background:var(--hairline); margin:12px 0; }}
 img.overview {{ width:100%; }}
+
+/* street index: 4 columns, grouped by name */
+.sidx-cols {{ column-count:4; column-gap:12px; column-rule:1px solid var(--column-rule); }}
+.sidx-grp {{ font-family:"Archivo Black"; font-size:13px; line-height:1;
+            color:var(--ink-deep); margin:7px 0 3px; break-inside:avoid; break-after:avoid; }}
+.sidx-entry {{ break-inside:avoid; margin-bottom:2px; line-height:1.16; }}
+.sidx-name {{ font-size:7.5px; font-weight:700; color:var(--ink); }}
+.sidx-seg {{ font-size:7px; }}
+.sidx-sep {{ color:#BBAF98; }}
+.sidx-rng {{ color:#A89F8C; white-space:nowrap; }}
+.sidx-cells {{ color:var(--accent); font-weight:700; }}
+
+/* line index: 2 columns of line-art colectivo cards */
+.lidx-cols {{ column-count:2; column-gap:9px; }}
+.bcard {{ position:relative; display:inline-block; width:100%;
+         background:#FBF8F0; border:1px solid #D8C9A6; padding:7px 9px 6px;
+         margin-bottom:9px; overflow:hidden; break-inside:avoid; }}
+.bcard__inner {{ position:absolute; inset:3px; border:.8px solid #EAD9AC; pointer-events:none; }}
+.bcard__top {{ position:relative; display:flex; gap:8px; align-items:center; }}
+.bcard__sign {{ position:relative; flex:none; width:38px; }}
+.bcard__signnum {{ position:absolute; left:0; right:0; top:1px; height:54%;
+                  display:flex; align-items:center; justify-content:center;
+                  font-family:"Archivo Black"; font-size:13px; line-height:1;
+                  color:#FFFFFF; letter-spacing:-.5px; }}
+.bcard__bus {{ flex:1; min-width:0; position:relative; }}
+.bcard__busnum {{ position:absolute; left:87.5%; top:27.3%; transform:translate(-50%,-50%);
+                 font-family:"Archivo Black"; font-size:5.5px; line-height:1;
+                 color:#F1ECDF; letter-spacing:-.3px; white-space:nowrap; }}
+.bcard__route {{ position:relative; display:flex; align-items:center; gap:5px;
+                margin-top:5px; font-size:8px; font-weight:600; color:#5A554A;
+                letter-spacing:.1px; }}
+.bcard__a {{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis;
+            white-space:nowrap; text-align:right; }}
+.bcard__b {{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
+.bcard__arrow {{ flex:none; font-weight:800; }}
 """
 
 
@@ -123,7 +127,8 @@ def _render(body: str, out_name: str, page_rule: str):
 
 
 PAGE_FIXED = "@page { size: 460px 720px; margin: 0; }"
-PAGE_FLOW = "@page { size: 460px 720px; margin: 34px 30px 26px; background: " + TOK["paper"] + "; }"
+PAGE_FLOW = "@page { size: 460px 720px; margin: 30px 28px 22px; background: " + TOK["paper"] + "; }"
+PAGE_FLOW_LINES = "@page { size: 460px 720px; margin: 26px 22px 20px; background: #F2EEE4; }"
 
 
 # --------------------------------------------------------------------------
@@ -148,89 +153,233 @@ def make_overview_png() -> str:
 
 
 # --------------------------------------------------------------------------
-# cover + cómo usar
+# cover (light porteña) + cómo usar
 # --------------------------------------------------------------------------
-def _minigrid_html() -> str:
-    """5x7 cell grid (A-E / 1-7) with C4 filled, as a table (WeasyPrint has no
-    CSS grid)."""
-    rows = []
-    for r in range(7):
-        cells = "".join(
-            f"<td class='hit'></td>" if (r == 3 and c == 2) else "<td></td>"
-            for c in range(5))
-        rows.append(f"<tr>{cells}</tr>")
-    return f"<table class='minigrid'>{''.join(rows)}</table>"
+def _sol_de_mayo() -> str:
+    return """<svg viewBox="0 0 80 80" style="position:absolute; top:18px; right:22px; width:96px; height:96px; opacity:.85; pointer-events:none;">
+      <g fill="#E6A92C"><g>
+        <polygon points="40,4 43,18 37,18"></polygon><polygon points="76,40 62,43 62,37"></polygon>
+        <polygon points="40,76 37,62 43,62"></polygon><polygon points="4,40 18,37 18,43"></polygon>
+        <polygon points="65,15 55,24 51,20"></polygon><polygon points="65,65 56,56 60,52"></polygon>
+        <polygon points="15,65 24,55 28,59"></polygon><polygon points="15,15 25,24 21,28"></polygon>
+      </g><circle cx="40" cy="40" r="17"></circle></g>
+      <circle cx="40" cy="40" r="17" fill="none" stroke="#C98A1E" stroke-width="1.2"></circle>
+    </svg>"""
+
+
+def _fileteado() -> str:
+    return """<div style="position:relative; margin-top:16px; display:flex; justify-content:center;">
+      <svg width="240" height="24" viewBox="0 0 240 24" fill="none">
+        <g stroke="#3C82A8" stroke-width="2" stroke-linecap="round">
+          <path d="M120,12 C102,12 98,3 86,5 C74,7 80,19 69,19 C60,19 60,9 50,10"></path>
+          <path d="M120,12 C138,12 142,3 154,5 C166,7 160,19 171,19 C180,19 180,9 190,10"></path>
+        </g>
+        <g stroke="#B11E2A" stroke-width="2" stroke-linecap="round">
+          <path d="M120,12 C110,12 106,7 98,8"></path><path d="M120,12 C130,12 134,7 142,8"></path>
+        </g>
+        <circle cx="120" cy="12" r="3.6" fill="#E0A82E"></circle>
+        <circle cx="48" cy="10" r="2.4" fill="#B11E2A"></circle>
+        <circle cx="192" cy="10" r="2.4" fill="#B11E2A"></circle>
+      </svg></div>"""
+
+
+def _skyline() -> str:
+    return """<div style="position:relative; margin-top:auto;">
+      <svg viewBox="0 0 392 116" style="width:100%; height:auto; display:block;">
+        <g fill="#2A2620">
+          <rect x="0" y="70" width="44" height="46"></rect><rect x="350" y="58" width="42" height="58"></rect>
+          <rect x="300" y="74" width="40" height="42"></rect><rect x="6" y="66" width="26" height="50"></rect>
+          <rect x="34" y="50" width="18" height="66"></rect><rect x="54" y="58" width="40" height="58"></rect>
+          <path d="M54,58 a20,20 0 0 1 40,0 Z"></path><rect x="71" y="30" width="6" height="12"></rect>
+          <rect x="73" y="22" width="2" height="9"></rect><rect x="100" y="72" width="16" height="44"></rect>
+          <ellipse cx="140" cy="80" rx="22" ry="13"></ellipse><rect x="119" y="80" width="42" height="36"></rect>
+          <rect x="168" y="60" width="16" height="56"></rect>
+          <polygon points="222,116 226,30 230,22 234,30 238,116"></polygon>
+          <rect x="250" y="66" width="18" height="50"></rect><rect x="282" y="48" width="26" height="68"></rect>
+          <polygon points="282,48 295,32 308,48"></polygon><rect x="320" y="40" width="30" height="76"></rect>
+          <rect x="326" y="30" width="18" height="12"></rect><rect x="331" y="22" width="8" height="9"></rect>
+        </g>
+        <g fill="#E6A92C">
+          <rect x="12" y="72" width="2.4" height="2.4"></rect><rect x="18" y="72" width="2.4" height="2.4"></rect>
+          <rect x="12" y="80" width="2.4" height="2.4"></rect><rect x="18" y="80" width="2.4" height="2.4"></rect>
+          <rect x="39" y="58" width="2.4" height="2.4"></rect><rect x="44" y="58" width="2.4" height="2.4"></rect>
+          <rect x="289" y="58" width="2.4" height="2.4"></rect><rect x="296" y="58" width="2.4" height="2.4"></rect>
+          <rect x="328" y="50" width="2.4" height="2.4"></rect><rect x="335" y="50" width="2.4" height="2.4"></rect>
+        </g>
+        <line x1="0" y1="115" x2="392" y2="115" stroke="#9FB0A8" stroke-width="2"></line>
+        <g transform="translate(120,101)">
+          <rect x="0" y="0" width="34" height="11" rx="2.5" fill="#ED5B2A"></rect>
+          <rect x="4" y="2.4" width="20" height="4" rx="1" fill="#1B1610" opacity=".4"></rect>
+          <circle cx="9" cy="12" r="2.6" fill="#2A2620"></circle><circle cx="27" cy="12" r="2.6" fill="#2A2620"></circle>
+        </g>
+        <g transform="translate(244,99)">
+          <rect x="0" y="2" width="44" height="11" rx="2" fill="#00925A"></rect>
+          <rect x="3" y="4.2" width="38" height="4" rx="1" fill="#04331F" opacity=".4"></rect>
+          <rect x="20" y="-2" width="3" height="4" fill="#00925A"></rect>
+          <circle cx="10" cy="14" r="2.6" fill="#2A2620"></circle><circle cx="34" cy="14" r="2.6" fill="#2A2620"></circle>
+        </g>
+      </svg></div>"""
+
+
+def _n_colectivos() -> int:
+    data = json.loads((CFG.output_dir / "line_to_cells.json").read_text(encoding="utf-8"))
+    return sum(1 for l in data["lines"] if l["mode"] == "colectivo")
 
 
 def cover():
     title_html = "<br>".join(escape(w) for w in CFG.title.split())
-    scale_str = f"{int(CFG.scale_denom):,}".replace(",", " ")
     chips = "".join(
-        f"<div class='chip' style='background:{SUBTE_HEX[k]};"
-        f"{'color:#1C1A15' if k == 'H' else ''}'>{k}</div>"
+        f"<div style=\"width:26px; height:26px; border-radius:6px; display:flex;"
+        f" align-items:center; justify-content:center; font-family:'Archivo Black';"
+        f" font-size:13px; color:{'#1C1A15' if k == 'H' else '#fff'};"
+        f" background:{SUBTE_HEX[k]};\">{k}</div>"
         for k in ("A", "B", "C", "D", "E", "H"))
+    pills = "".join(
+        f"<div style=\"display:flex; align-items:center; gap:5px; padding:3px 8px 3px 5px;"
+        f" border-radius:20px; background:#E7DCC2;\">"
+        f"<span style=\"width:9px; height:9px; border-radius:50%; background:{c};\"></span>"
+        f"<span style=\"font-size:9.5px; font-weight:600; color:#4A4434;\">{escape(name)}</span></div>"
+        for name, c in TREN)
+    n_col = _n_colectivos()
+    counts = f"{n_col} colectivos · 6 subtes · 7 trenes"
+
     cover_html = f"""
-    <div class='page cover'>
-      <div class='cover__fishnet'></div>
-      <div class='cover__row'>
-        <div class='kicker'>{escape(CFG.edition)}</div>
-        <div class='cover__edmark'>v{escape(CFG.datos_fecha)}</div>
+    <div class='page' style="background:#EFE7D3; color:#1C1A15; overflow:hidden;
+         display:flex; flex-direction:column; padding:32px 34px 26px;">
+      <div style="position:absolute; top:0; left:0; right:0; height:340px;
+           background:linear-gradient(#C5E0EC 0%, #D9E8E4 55%, #EFE7D3 100%); pointer-events:none;"></div>
+      {_sol_de_mayo()}
+      <div style="position:absolute; inset:0; pointer-events:none;
+           background-image:repeating-linear-gradient(90deg, rgba(28,26,21,.05) 0 1px, transparent 1px 20%),
+           repeating-linear-gradient(0deg, rgba(28,26,21,.045) 0 1px, transparent 1px 14.285%);"></div>
+
+      <div style="position:relative;">
+        <div style="font-size:11px; font-weight:700; letter-spacing:2.5px; color:#B11E2A;">
+          {escape(CFG.edition.upper())}</div>
       </div>
-      <div>
-        <h1 class='cover__title'>{title_html}</h1>
-        <div class='cover__rule'></div>
-        <div class='cover__tag'>{escape(CFG.subtitle)}. Mapas, índice de calles
-          y líneas de colectivo y subte, hechos con datos abiertos.</div>
-      </div>
-      <div class='cover__chips'>{chips}</div>
-      <div class='cover__foot'>
-        <div class='cover__credits'>
-          Recorridos AMBA · Min. Transporte (CC-BY 4.0)<br>
-          Subte / Callejero / Barrios / Manzanas · GCBA (CC-BY 2.5 AR)<br>
-          Puntos de interés · © OpenStreetMap (ODbL)<br>
-          Software libre · código MIT
+
+      <div style="position:relative; margin-top:24px;">
+        <div style="font-size:13px; font-weight:600; letter-spacing:.5px; color:#3C6B81; margin-bottom:12px;">
+          Colectivos · Subte · Trenes · Buenos Aires</div>
+        <div style="font-family:'Archivo Black'; font-size:74px; line-height:.84;
+             letter-spacing:-2.5px; color:#1C1A15;">{title_html}</div>
+        <div style="display:flex; gap:6px; margin:18px 0 16px;">
+          <div style="width:46px; height:5px; background:#4E9CC2;"></div>
+          <div style="width:18px; height:5px; background:#ED5B2A;"></div>
+          <div style="width:10px; height:5px; background:#E0A82E;"></div>
         </div>
-        <div class='cover__scale'>Escala 1:{scale_str}<br>EPSG:9498</div>
+        <div style="font-size:14.5px; line-height:1.45; color:#5A554A; max-width:300px;">
+          El mapa de bolsillo de la ciudad. Buscás la calle, leés la celda, encontrás la línea.</div>
+      </div>
+
+      {_fileteado()}
+      {_skyline()}
+
+      <div style="position:relative; margin-top:14px; display:flex; flex-direction:column; gap:11px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; color:#8A8273; width:42px;">SUBTE</div>
+          <div style="display:flex; gap:6px;">{chips}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:10px; font-weight:700; letter-spacing:1.5px; color:#8A8273; width:42px;">TREN</div>
+          <div style="display:flex; flex-wrap:wrap; gap:5px;">{pills}</div>
+        </div>
+      </div>
+
+      <div style="position:relative; margin-top:15px; border-top:1px solid #D6CCB4; padding-top:13px;
+           display:flex; justify-content:space-between; align-items:flex-end; gap:16px;">
+        <div style="font-size:9.5px; line-height:1.6; color:#8A8273;">
+          <div>Recorridos AMBA · Min. Transporte (CC-BY 4.0)</div>
+          <div>Callejero, subte y manzanas · GCBA</div>
+          <div>Trenes Argentinos · Puntos de interés © OSM</div>
+        </div>
+        <div style="font-size:9.5px; color:#6E6655; text-align:right; line-height:1.5; white-space:nowrap;">
+          {counts}<br>Escala 1:20 000 · EPSG:9498</div>
       </div>
     </div>"""
 
-    como_html = f"""
-    <div class='page como'>
-      <div class='kicker'>{escape(CFG.title)}</div>
-      <h1 class='como__title'>Cómo usar</h1>
-      <div class='rule'></div>
-      <div class='step'><div class='step__n'>1</div><div>
-        <div class='step__t'>Buscá la calle</div>
-        <div class='step__d'>En el <b>índice de calles</b>, anotá la referencia,
-          por ejemplo <b>12-C4</b> (página 12, celda C4).</div></div></div>
-      <div class='step'><div class='step__n'>2</div><div>
-        <div class='step__t'>Andá al mapa</div>
-        <div class='step__d'>Página 12, celda C4: letras A–E arriba, números 1–7
-          al costado.</div></div></div>
-      <div class='step'><div class='step__n'>3</div><div>
-        <div class='step__t'>Leé las líneas</div>
-        <div class='step__d'>La página de al lado repite la cuadrícula. En C4
-          están las líneas: número = colectivo, letra de color = subte.</div></div></div>
-      <div class='como__inset'>
-        {_minigrid_html()}
-        <div class='inset__cap'>Misma grilla en el mapa y en las líneas.<br>
-          Referencia <b>12-C4</b>.</div>
+    return _render(cover_html + _como_usar_html(), "cover.pdf", PAGE_FIXED)
+
+
+def _mini_grid() -> str:
+    """5x7 grid with C4 filled and A-E / 1-7 gutters (flex + table; WeasyPrint
+    has no CSS grid)."""
+    top = "".join(
+        f"<span style=\"width:22px; text-align:center; font-size:9px; font-weight:700;"
+        f" color:{'#ED5B2A' if c == 'C' else '#8C877C'};\">{c}</span>"
+        for c in "ABCDE")
+    left = "".join(
+        f"<span style=\"height:22px; line-height:22px; width:12px; text-align:right;"
+        f" font-size:9px; font-weight:700; color:{'#ED5B2A' if n == 4 else '#8C877C'};\">{n}</span>"
+        for n in range(1, 8))
+    rows = "".join(
+        "<tr>" + "".join(
+            "<td style='width:22px; height:22px; border:1px solid #C7BEA9; padding:0;"
+            + ("background:#ED5B2A; opacity:.85;'></td>" if (r == 3 and c == 2) else "'></td>")
+            for c in range(5)) + "</tr>"
+        for r in range(7))
+    return f"""<div style="flex:none;">
+      <div style="display:flex; padding-left:16px; margin-bottom:4px;">{top}</div>
+      <div style="display:flex;">
+        <div style="display:flex; flex-direction:column; padding-right:4px;">{left}</div>
+        <table style="border-collapse:collapse; border:1px solid #C7BEA9;">{rows}</table>
+      </div></div>"""
+
+
+def _como_usar_html() -> str:
+    steps = [
+        ("1", "Buscá la calle",
+         "Encontrá tu calle en el índice y anotá la referencia. Por ejemplo "
+         "<b>12-C4</b> — página 12, celda C4."),
+        ("2", "Ubicá la celda en el mapa",
+         "Andá a la página de mapa 12 y ubicá la celda C4: las letras (A–E) van "
+         "arriba y los números (1–7) al costado."),
+        ("3", "Leé las líneas al lado",
+         "En la página de al lado, la grilla de líneas usa la misma cuadrícula. "
+         "Los números son colectivos; la letra de color es el subte."),
+    ]
+    steps_html = "".join(
+        f"""<div style="display:flex; gap:16px; align-items:flex-start;">
+          <div style="flex:none; width:30px; height:30px; background:#17150F; color:#F1ECDF;
+               font-family:'Archivo Black'; font-size:15px; display:flex; align-items:center;
+               justify-content:center;">{n}</div>
+          <div style="flex:1;">
+            <div style="font-size:16px; font-weight:700; color:#1C1A15; margin-bottom:4px;">{t}</div>
+            <div style="font-size:13.5px; line-height:1.5; color:#5A554A;">{d}</div></div></div>"""
+        for n, t, d in steps)
+    return f"""
+    <div class='page' style="background:#F5F2EA; display:flex; flex-direction:column; padding:40px 38px 30px;">
+      <div style="font-size:12px; font-weight:700; letter-spacing:1.5px; color:#ED5B2A; margin-bottom:6px;">
+        {escape(CFG.title.upper())}</div>
+      <div style="font-family:'Archivo Black'; font-size:40px; letter-spacing:-1.5px; line-height:1; color:#1C1A15;">
+        Cómo usar</div>
+      <div style="width:100%; height:1px; background:#DAD3C4; margin:24px 0 26px;"></div>
+      <div style="display:flex; flex-direction:column; gap:24px;">{steps_html}</div>
+      <div style="margin-top:auto; background:#EDE7D8; border:1px solid #DED7C6; padding:20px;
+           display:flex; gap:22px; align-items:center;">
+        {_mini_grid()}
+        <div>
+          <div style="font-size:12px; font-weight:700; color:#1C1A15; margin-bottom:4px;">
+            Referencia <span style="color:#ED5B2A;">12-C4</span></div>
+          <div style="font-size:12.5px; line-height:1.45; color:#5A554A;">
+            Página 12, columna C, fila 4. La misma celda existe en el mapa y en la grilla de líneas.</div>
+        </div>
       </div>
     </div>"""
-    return _render(cover_html + como_html, "cover.pdf", PAGE_FIXED)
 
 
 def overview():
     uri = make_overview_png()
     body = f"""
-    <div class='idx-head'><div class='kicker'>Guía Abierta</div>
-      <div class='idx-sub'>Mapa índice — número de página por zona</div></div>
+    <div class='idx-head'><div><div class='kicker'>Guía Abierta</div>
+      <div class='idx-sub'>Mapa índice — número de página por zona</div></div></div>
+    <div class='idx-rule'></div>
     <img class='overview' src='{uri}'>"""
     return _render(body, "overview.pdf", PAGE_FLOW)
 
 
 # --------------------------------------------------------------------------
-# street index
+# street index: 4 columns, grouped by name into segments
 # --------------------------------------------------------------------------
 def _first_letter(name: str) -> str:
     for ch in name:
@@ -239,103 +388,154 @@ def _first_letter(name: str) -> str:
     return "#"
 
 
-def _ref_html(ref: str) -> str:
-    page, cell = ref.split("-")
-    return f"<span class='ref'><span class='ref__p'>{page}</span><span class='ref__c'>-{cell}</span></span>"
+def _trim_name(name: str) -> str:
+    name = name.replace(" (NO OFICIAL)", "").strip()
+    return name if len(name) <= 26 else name[:25].rstrip() + "…"
+
+
+def _group_streets(entries: list) -> list:
+    groups: list = []
+    for e in entries:
+        seg = {"range": e.get("range"), "refs": e["refs"]}
+        if groups and groups[-1]["name"] == e["name"]:
+            groups[-1]["segs"].append(seg)
+        else:
+            groups.append({"name": e["name"], "segs": [seg]})
+    return groups
+
+
+def _seg_html(seg: dict) -> str:
+    rng = (f"<span class='sidx-rng'>{escape(seg['range'])}{NBSP}</span>"
+           if seg.get("range") else "")
+    cells = " ".join(f"<span class='nw'>{escape(r)}</span>" for r in seg["refs"])
+    return (f"<span class='sidx-seg'><span class='sidx-sep'> ·{NBSP}</span>"
+            f"{rng}<span class='sidx-cells'>{cells}</span></span>")
 
 
 def street_index_pdf():
     data = json.loads((CFG.output_dir / "street_index.json").read_text(encoding="utf-8"))
     parts, cur = [], None
-    for e in data["entries"]:
-        letter = _first_letter(e["name"])
+    for g in _group_streets(data["entries"]):
+        letter = _first_letter(g["name"])
         if letter != cur:
             cur = letter
-            parts.append(f"<div class='grp'>{escape(letter)}</div>")
-        rng = f" <span class='ref__c'>{e['range']}</span>" if e.get("range") else ""
-        refs = "".join(_ref_html(r) for r in e["refs"])
-        parts.append(f"<div class='entry'><span class='entry__name'>"
-                     f"{escape(e['name'])}</span>{rng} {refs}</div>")
-    head = ("<div class='idx-head'><div class='kicker'>Índice de calles</div>"
-            "<div class='idx-sub'>calle · página-celda</div></div>")
-    body = head + f"<div class='indice__cols'>{''.join(parts)}</div>"
+            parts.append(f"<div class='sidx-grp'>{escape(letter)}</div>")
+        segs = "".join(_seg_html(s) for s in g["segs"])
+        parts.append(f"<div class='sidx-entry'><span class='sidx-name'>"
+                     f"{escape(_trim_name(g['name']))}</span>{segs}</div>")
+    head = ("<div class='idx-head'><div>"
+            "<div class='kicker'>Índice de calles</div>"
+            "<div class='idx-sub'>calle · rango · página-celda</div></div></div>"
+            "<div class='idx-rule'></div>")
+    body = head + f"<div class='sidx-cols'>{''.join(parts)}</div>"
     return _render(body, "street_index.pdf", PAGE_FLOW)
 
 
 # --------------------------------------------------------------------------
-# line index (colectivos + subte), per-line colored badges + street route
+# line index: line-art colectivo cards (pentagon route sign + bus + recorrido)
 # --------------------------------------------------------------------------
-def _ref_key(ref):
-    page, cell = ref.split("-")
-    return (int(page), cell[0], int(cell[1:]))
-
-
 def _line_key(line):
     return (0, int(line)) if str(line).isdigit() else (1, str(line))
 
 
-def _line_cells(ln):
-    seen = set()
-    for refs in ln["directions"].values():
-        seen.update(refs)
-    return sorted(seen, key=_ref_key)
-
-
-def _line_route(ln):
-    streets = ln.get("streets") or []
-    return ", ".join(streets) if streets else ", ".join(_line_cells(ln))
-
-
-def _color_overrides() -> dict:
-    import csv
-    p = CFG.data_dir / "line_colors.csv"
-    out = {}
-    if p.exists():
-        for row in csv.reader(p.read_text(encoding="utf-8").splitlines()):
-            if len(row) >= 2 and row[1].strip().startswith("#"):
-                out[row[0].strip()] = row[1].strip()
-    return out
-
-
-def _line_bg(line, overrides):
-    if str(line) in overrides:
-        return overrides[str(line)]
-    import colorsys
-    import zlib
+def _livery(line) -> tuple:
     s = str(line)
+    if s in LIVERY:
+        return LIVERY[s]
     seed = int(s) if s.isdigit() else zlib.crc32(s.encode())
     h = ((seed * 137) % 360) / 360.0
-    r, g, b = colorsys.hls_to_rgb(h, 0.46, 0.55)
-    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+    rr, rg, rb = colorsys.hls_to_rgb(h, 0.34, 0.55)            # dark roof
+    sr, sg, sb = colorsys.hls_to_rgb((h + 0.5) % 1.0, 0.52, 0.72)  # warm stripe
+    roof = f"#{int(rr * 255):02x}{int(rg * 255):02x}{int(rb * 255):02x}"
+    stripe = f"#{int(sr * 255):02x}{int(sg * 255):02x}{int(sb * 255):02x}"
+    return roof, stripe
 
 
-def _text_on(bg):
-    r, g, b = int(bg[1:3], 16), int(bg[3:5], 16), int(bg[5:7], 16)
-    return "#1C1A15" if (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 else "#fff"
+def _cabeceras(ln) -> tuple:
+    streets = ln.get("streets") or []
+    if len(streets) >= 2:
+        return streets[0], streets[-1]
+    if len(streets) == 1:
+        return streets[0], streets[0]
+    cells = sorted({c for refs in ln["directions"].values() for c in refs})
+    return (cells[0] if cells else "", cells[-1] if cells else "")
+
+
+def _bus_card(ln) -> str:
+    num = escape(str(ln["line"]))
+    roof, stripe = _livery(ln["line"])
+    a, b = _cabeceras(ln)
+    a, b = escape(a.title()), escape(b.title())
+    sign = f"""<div class="bcard__sign">
+      <svg viewBox="0 0 44 52" style="width:100%; height:auto; display:block;">
+        <path d="M3,5 Q3,2 6,2 L38,2 Q41,2 41,5 L41,30 Q41,32.5 39.3,34 L24,48.5 Q22,50.3 20,48.5 L4.7,34 Q3,32.5 3,30 Z" fill="{roof}" stroke="#1C1A15" stroke-width="1.6"></path>
+        <path d="M7,6.5 Q7,5.5 8,5.5 L36,5.5 Q37,5.5 37,6.5 L37,29.5 Q37,30.5 36.4,31 L22.5,44 Q22,44.5 21.5,44 L7.6,31 Q7,30.5 7,29.5 Z" fill="none" stroke="#FFFFFF" stroke-width="1" opacity=".9"></path>
+      </svg>
+      <div class="bcard__signnum">{num}</div></div>"""
+    bus = f"""<div class="bcard__bus">
+      <svg viewBox="0 0 232 86" style="width:100%; height:auto; display:block;">
+        <path d="M11,63 L11,25 Q11,17 19,17 L207,17 Q214,17.5 218,24 L223,41 Q224,45 224,50 L224,61 Q224,63 221,63 Z" fill="#FCFAF3" stroke="#1C1A15" stroke-width="1.7" stroke-linejoin="round"></path>
+        <rect x="11" y="45" width="213" height="6.6" fill="{stripe}"></rect>
+        <rect x="11" y="59.5" width="210" height="3.5" fill="{stripe}"></rect>
+        <g fill="{GLASS}" stroke="#1C1A15" stroke-width=".9">
+          <rect x="22" y="29" width="23" height="14" rx="1.6"></rect>
+          <rect x="49" y="29" width="23" height="14" rx="1.6"></rect>
+          <rect x="76" y="29" width="23" height="14" rx="1.6"></rect>
+          <rect x="103" y="29" width="23" height="14" rx="1.6"></rect>
+          <rect x="130" y="29" width="23" height="14" rx="1.6"></rect>
+          <rect x="157" y="29" width="23" height="14" rx="1.6"></rect>
+          <path d="M204,29 L218,43 L186,43 L186,29 Z"></path></g>
+        <g fill="none" stroke="#1C1A15" stroke-width=".8" opacity=".55">
+          <rect x="22" y="20.5" width="158" height="6" rx="1"></rect>
+          <line x1="48.5" y1="20.5" x2="48.5" y2="26.5"></line>
+          <line x1="75" y1="20.5" x2="75" y2="26.5"></line>
+          <line x1="101.5" y1="20.5" x2="101.5" y2="26.5"></line>
+          <line x1="128" y1="20.5" x2="128" y2="26.5"></line>
+          <line x1="154.5" y1="20.5" x2="154.5" y2="26.5"></line></g>
+        <rect x="186" y="19.5" width="34" height="8" rx="1.4" fill="#17150F"></rect>
+        <g fill="none" stroke="#1C1A15" stroke-width="1">
+          <line x1="184" y1="45" x2="184" y2="63"></line>
+          <rect x="186" y="45.5" width="16" height="17.5"></rect>
+          <line x1="194" y1="45.5" x2="194" y2="63"></line>
+          <line x1="70" y1="45" x2="70" y2="63"></line>
+          <line x1="74" y1="45" x2="74" y2="63"></line></g>
+        <path d="M11,63 L11,25 Q11,17 19,17 L207,17 Q214,17.5 218,24 L223,41 Q224,45 224,50 L224,61 Q224,63 221,63" fill="none" stroke="#1C1A15" stroke-width="1.7" stroke-linejoin="round"></path>
+        <circle cx="222" cy="55" r="2.4" fill="#FCE08A" stroke="#1C1A15" stroke-width=".6"></circle>
+        <g stroke="#1C1A15" stroke-width="1.5">
+          <circle cx="58" cy="63" r="12.5" fill="#FCFAF3"></circle>
+          <circle cx="58" cy="63" r="5" fill="#CFC8B8"></circle>
+          <circle cx="186" cy="63" r="12.5" fill="#FCFAF3"></circle>
+          <circle cx="186" cy="63" r="5" fill="#CFC8B8"></circle></g>
+      </svg>
+      <div class="bcard__busnum">{num}</div></div>"""
+    return f"""<div class="bcard"><div class="bcard__inner"></div>
+      <div class="bcard__top">{sign}{bus}</div>
+      <div class="bcard__route">
+        <span class="bcard__a">{a}</span>
+        <span class="bcard__arrow" style="color:{roof};">→</span>
+        <span class="bcard__b">{b}</span></div></div>"""
 
 
 def line_index_pdf():
     data = json.loads((CFG.output_dir / "line_to_cells.json").read_text(encoding="utf-8"))
     colect = sorted((l for l in data["lines"] if l["mode"] == "colectivo"),
                     key=lambda l: _line_key(l["line"]))
-    subte = sorted((l for l in data["lines"] if l["mode"] == "subte"),
-                   key=lambda l: _line_key(l["line"]))
-    ov = _color_overrides()
-
-    def row(ln, bg):
-        fg = _text_on(bg)
-        return (f"<div class='lrow'><span class='lbadge' style='background:{bg};"
-                f"color:{fg}'>{escape(str(ln['line']))}</span>"
-                f"<span class='lroute'>{escape(_line_route(ln))}</span></div>")
-
-    crows = "".join(row(l, _line_bg(l["line"], ov)) for l in colect)
-    srows = "".join(row(l, SUBTE_HEX.get(str(l["line"]).upper(), "#444")) for l in subte)
-    head = ("<div class='idx-head'><div class='kicker'>Líneas de colectivo</div>"
-            "<div class='idx-sub'>línea · recorrido por calles</div></div>")
-    shead = "<div class='idx-head'><div class='kicker'>Subte</div></div>"
-    body = (head + f"<div class='indice__cols'>{crows}</div>"
-            + shead + f"<div class='indice__cols'>{srows}</div>")
-    return _render(body, "line_index.pdf", PAGE_FLOW)
+    cards = "".join(_bus_card(l) for l in colect)
+    head = f"""
+    <div class='idx-head'>
+      <div><div class='kicker'>Líneas de colectivo</div>
+        <div class='idx-sub'>recorrido · cabecera a cabecera</div></div>
+      <div style="text-align:right;">
+        <div style="font-family:'Archivo Black'; font-size:30px; line-height:.8; color:#17150F;">{len(colect)}</div>
+        <div style="font-size:9px; color:#8C877C; margin-top:2px;">líneas en la guía</div></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; margin:14px 0;">
+      <div style="height:1px; flex:1; background:#D8C9A6;"></div>
+      <svg width="46" height="10" viewBox="0 0 46 10"><path d="M2,8 C 8,2 16,2 23,6 C 30,2 38,2 44,8" fill="none" stroke="#C99B33" stroke-width="1.3"></path><circle cx="23" cy="6" r="1.6" fill="#C99B33"></circle></svg>
+      <div style="height:1px; flex:1; background:#D8C9A6;"></div>
+    </div>"""
+    body = head + f"<div class='lidx-cols'>{cards}</div>"
+    return _render(body, "line_index.pdf", PAGE_FLOW_LINES)
 
 
 def build_frontmatter() -> list:
