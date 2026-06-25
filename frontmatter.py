@@ -52,7 +52,6 @@ LIVERY = {
     "152": ("#15346B", "#C8202A"), "160": ("#7A1F2B", "#E8B23A"),
     "166": ("#5E3A8C", "#F4C20D"), "168": ("#0E7C7B", "#E8902B"),
 }
-GLASS = "#BFD8E0"
 
 # --------------------------------------------------------------------------
 # CSS for the data-driven index pages (cover + cómo-usar are inline-styled)
@@ -84,27 +83,24 @@ img.overview {{ width:100%; }}
              font-size:7px; line-height:1.3; text-align:justify; -weasy-hyphens:none; }}
 .sidx-name {{ font-weight:700; color:var(--ink); }}
 .sidx-rng {{ color:#A89F8C; }}
-.sidx-cells {{ color:var(--accent); font-weight:700; }}
+.sidx-cells {{ color:var(--accent); }}
+.sidx-pg {{ color:var(--accent); font-weight:700; }}
 .sidx-bul {{ color:#C2B69C; font-weight:700; }}
 
-/* line index: 2 columns of line-art colectivo cards (small bus + street route) */
+/* line index: pentagon route sign + street route text (no bus drawing) */
 .lidx-cols {{ column-count:2; column-gap:9px; }}
 .bcard {{ position:relative; display:inline-block; width:100%;
          background:#FBF8F0; border:1px solid #D8C9A6; padding:6px 8px 5px;
          margin-bottom:7px; overflow:hidden; break-inside:avoid; }}
 .bcard__inner {{ position:absolute; inset:3px; border:.8px solid #EAD9AC; pointer-events:none; }}
-.bcard__top {{ position:relative; display:flex; gap:7px; align-items:center; }}
-.bcard__sign {{ position:relative; flex:none; width:30px; }}
+.bcard__top {{ position:relative; display:flex; gap:8px; align-items:center; }}
+.bcard__sign {{ position:relative; flex:none; width:34px; }}
 .bcard__signnum {{ position:absolute; left:0; right:0; top:1px; height:54%;
                   display:flex; align-items:center; justify-content:center;
-                  font-family:"Archivo Black"; font-size:11px; line-height:1;
+                  font-family:"Archivo Black"; font-size:12px; line-height:1;
                   color:#FFFFFF; letter-spacing:-.5px; }}
-.bcard__bus {{ position:relative; flex:none; width:104px; }}
-.bcard__busnum {{ position:absolute; left:87.5%; top:27.3%; transform:translate(-50%,-50%);
-                 font-family:"Archivo Black"; font-size:5px; line-height:1;
-                 color:#F1ECDF; letter-spacing:-.3px; white-space:nowrap; }}
-.bcard__route {{ flex:1; min-width:0; font-size:6.8px; line-height:1.24;
-                font-weight:600; color:#5A554A; max-height:42px; overflow:hidden; }}
+.bcard__route {{ flex:1; min-width:0; font-size:7.5px; line-height:1.28;
+                font-weight:600; color:#5A554A; }}
 """
 
 
@@ -117,9 +113,13 @@ def _render(body: str, out_name: str, page_rule: str):
     return out
 
 
+_FOLIO = ("@bottom-right { content: counter(page, decimal-leading-zero); "
+          "font-family: 'Archivo Black'; font-size: 10px; color: #17150F; }")
 PAGE_FIXED = "@page { size: 460px 720px; margin: 0; }"
-PAGE_FLOW = "@page { size: 460px 720px; margin: 30px 28px 22px; background: " + TOK["paper"] + "; }"
-PAGE_FLOW_LINES = "@page { size: 460px 720px; margin: 26px 22px 20px; background: #F2EEE4; }"
+PAGE_FLOW = ("@page { size: 460px 720px; margin: 30px 28px 24px; background: "
+             + TOK["paper"] + "; " + _FOLIO + " }")
+PAGE_FLOW_LINES = ("@page { size: 460px 720px; margin: 26px 22px 22px; background: #F2EEE4; "
+                   + _FOLIO + " }")
 
 
 # --------------------------------------------------------------------------
@@ -386,12 +386,23 @@ def _group_streets(entries: list) -> list:
     return groups
 
 
+def _cell_key(cell: str):
+    return (cell[0], int(cell[1:]))
+
+
 def _seg_html(seg: dict) -> str:
     rng = (f"<span class='sidx-rng'>{escape(seg['range'])}{NBSP}</span>"
            if seg.get("range") else "")
-    cells = " ".join(f"<span class='nw'>{escape(r).replace('-', '·')}</span>"
-                     for r in seg["refs"])
-    return f"{rng}<span class='sidx-cells'>{cells}</span>"
+    # one page may hold several cells: print the page once, then its cells.
+    by_page: dict = {}
+    for ref in seg["refs"]:
+        page, cell = ref.split("-")
+        by_page.setdefault(page, []).append(cell)
+    groups = []
+    for page, cells in by_page.items():
+        cs = ", ".join(sorted(set(cells), key=_cell_key))
+        groups.append(f"<span class='nw'><span class='sidx-pg'>{escape(page)}</span> {cs}</span>")
+    return f"{rng}<span class='sidx-cells'>{' · '.join(groups)}</span>"
 
 
 def street_index_pdf():
@@ -403,7 +414,7 @@ def street_index_pdf():
     flow = "<span class='sidx-bul'> • </span>".join(items)
     head = ("<div class='idx-head'><div>"
             "<div class='kicker'>Índice de calles</div>"
-            "<div class='idx-sub'>calle · rango · página·celda</div></div></div>"
+            "<div class='idx-sub'>calle · altura · página, celdas</div></div></div>"
             "<div class='idx-rule'></div>")
     body = head + f"<div class='sidx-cols'>{flow}</div>"
     return _render(body, "street_index.pdf", PAGE_FLOW)
@@ -439,52 +450,16 @@ def _route_text(ln) -> str:
 
 def _bus_card(ln) -> str:
     num = escape(str(ln["line"]))
-    roof, stripe = _livery(ln["line"])
+    roof = _livery(ln["line"])[0]
     sign = f"""<div class="bcard__sign">
       <svg viewBox="0 0 44 52" style="width:100%; height:auto; display:block;">
         <path d="M3,5 Q3,2 6,2 L38,2 Q41,2 41,5 L41,30 Q41,32.5 39.3,34 L24,48.5 Q22,50.3 20,48.5 L4.7,34 Q3,32.5 3,30 Z" fill="{roof}" stroke="#1C1A15" stroke-width="1.6"></path>
         <path d="M7,6.5 Q7,5.5 8,5.5 L36,5.5 Q37,5.5 37,6.5 L37,29.5 Q37,30.5 36.4,31 L22.5,44 Q22,44.5 21.5,44 L7.6,31 Q7,30.5 7,29.5 Z" fill="none" stroke="#FFFFFF" stroke-width="1" opacity=".9"></path>
       </svg>
       <div class="bcard__signnum">{num}</div></div>"""
-    bus = f"""<div class="bcard__bus">
-      <svg viewBox="0 0 232 86" style="width:100%; height:auto; display:block;">
-        <path d="M11,63 L11,25 Q11,17 19,17 L207,17 Q214,17.5 218,24 L223,41 Q224,45 224,50 L224,61 Q224,63 221,63 Z" fill="#FCFAF3" stroke="#1C1A15" stroke-width="1.7" stroke-linejoin="round"></path>
-        <rect x="11" y="45" width="213" height="6.6" fill="{stripe}"></rect>
-        <rect x="11" y="59.5" width="210" height="3.5" fill="{stripe}"></rect>
-        <g fill="{GLASS}" stroke="#1C1A15" stroke-width=".9">
-          <rect x="22" y="29" width="23" height="14" rx="1.6"></rect>
-          <rect x="49" y="29" width="23" height="14" rx="1.6"></rect>
-          <rect x="76" y="29" width="23" height="14" rx="1.6"></rect>
-          <rect x="103" y="29" width="23" height="14" rx="1.6"></rect>
-          <rect x="130" y="29" width="23" height="14" rx="1.6"></rect>
-          <rect x="157" y="29" width="23" height="14" rx="1.6"></rect>
-          <path d="M204,29 L218,43 L186,43 L186,29 Z"></path></g>
-        <g fill="none" stroke="#1C1A15" stroke-width=".8" opacity=".55">
-          <rect x="22" y="20.5" width="158" height="6" rx="1"></rect>
-          <line x1="48.5" y1="20.5" x2="48.5" y2="26.5"></line>
-          <line x1="75" y1="20.5" x2="75" y2="26.5"></line>
-          <line x1="101.5" y1="20.5" x2="101.5" y2="26.5"></line>
-          <line x1="128" y1="20.5" x2="128" y2="26.5"></line>
-          <line x1="154.5" y1="20.5" x2="154.5" y2="26.5"></line></g>
-        <rect x="186" y="19.5" width="34" height="8" rx="1.4" fill="#17150F"></rect>
-        <g fill="none" stroke="#1C1A15" stroke-width="1">
-          <line x1="184" y1="45" x2="184" y2="63"></line>
-          <rect x="186" y="45.5" width="16" height="17.5"></rect>
-          <line x1="194" y1="45.5" x2="194" y2="63"></line>
-          <line x1="70" y1="45" x2="70" y2="63"></line>
-          <line x1="74" y1="45" x2="74" y2="63"></line></g>
-        <path d="M11,63 L11,25 Q11,17 19,17 L207,17 Q214,17.5 218,24 L223,41 Q224,45 224,50 L224,61 Q224,63 221,63" fill="none" stroke="#1C1A15" stroke-width="1.7" stroke-linejoin="round"></path>
-        <circle cx="222" cy="55" r="2.4" fill="#FCE08A" stroke="#1C1A15" stroke-width=".6"></circle>
-        <g stroke="#1C1A15" stroke-width="1.5">
-          <circle cx="58" cy="63" r="12.5" fill="#FCFAF3"></circle>
-          <circle cx="58" cy="63" r="5" fill="#CFC8B8"></circle>
-          <circle cx="186" cy="63" r="12.5" fill="#FCFAF3"></circle>
-          <circle cx="186" cy="63" r="5" fill="#CFC8B8"></circle></g>
-      </svg>
-      <div class="bcard__busnum">{num}</div></div>"""
     route = escape(_route_text(ln))
     return f"""<div class="bcard"><div class="bcard__inner"></div>
-      <div class="bcard__top">{sign}{bus}
+      <div class="bcard__top">{sign}
         <div class="bcard__route">{route}</div></div></div>"""
 
 
