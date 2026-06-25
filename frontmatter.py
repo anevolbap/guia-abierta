@@ -80,27 +80,22 @@ img.overview {{ width:100%; }}
 
 /* street index: continuous dense flow, 4 columns, bullet-separated */
 .sidx-cols {{ column-count:4; column-gap:11px; column-rule:1px solid var(--column-rule);
-             font-size:7px; line-height:1.3; text-align:justify; -weasy-hyphens:none; }}
+             font-size:7px; line-height:1.26; text-align:left; -weasy-hyphens:none; }}
+.sidx-entry {{ break-inside:avoid; margin-bottom:1.5px; }}
 .sidx-name {{ font-weight:700; color:var(--ink); }}
+.sidx-alt {{ padding-left:7px; }}
 .sidx-rng {{ color:#A89F8C; }}
 .sidx-cells {{ color:var(--accent); }}
 .sidx-pg {{ color:var(--accent); font-weight:700; }}
-.sidx-bul {{ color:#C2B69C; font-weight:700; }}
 
-/* line index: pentagon route sign + street route text (no bus drawing) */
-.lidx-cols {{ column-count:2; column-gap:9px; }}
-.bcard {{ position:relative; display:inline-block; width:100%;
-         background:#FBF8F0; border:1px solid #D8C9A6; padding:6px 8px 5px;
-         margin-bottom:7px; overflow:hidden; break-inside:avoid; }}
-.bcard__inner {{ position:absolute; inset:3px; border:.8px solid #EAD9AC; pointer-events:none; }}
-.bcard__top {{ position:relative; display:flex; gap:8px; align-items:center; }}
-.bcard__sign {{ position:relative; flex:none; width:34px; }}
-.bcard__signnum {{ position:absolute; left:0; right:0; top:1px; height:54%;
-                  display:flex; align-items:center; justify-content:center;
-                  font-family:"Archivo Black"; font-size:12px; line-height:1;
-                  color:#FFFFFF; letter-spacing:-.5px; }}
-.bcard__route {{ flex:1; min-width:0; font-size:7.5px; line-height:1.28;
-                font-weight:600; color:#5A554A; }}
+/* line index: one column, "cartel de parada" number sign on the left */
+.lrow {{ display:flex; gap:10px; align-items:center; padding:4px 1px;
+        border-bottom:1px solid #E2D8C2; break-inside:avoid; }}
+.lrow__sign {{ position:relative; flex:none; width:48px; }}
+.lrow__signnum {{ position:absolute; left:0; right:0; top:0; height:78%;
+                 display:flex; align-items:center; justify-content:center;
+                 font-family:"Archivo Black"; line-height:1; letter-spacing:-.5px; }}
+.lrow__route {{ flex:1; min-width:0; font-size:8.5px; line-height:1.3; color:#3A362C; }}
 """
 
 
@@ -390,33 +385,40 @@ def _cell_key(cell: str):
     return (cell[0], int(cell[1:]))
 
 
-def _seg_html(seg: dict) -> str:
-    rng = (f"<span class='sidx-rng'>{escape(seg['range'])}{NBSP}</span>"
-           if seg.get("range") else "")
-    # one page may hold several cells: print the page once, then its cells.
+def _page_groups(refs: list) -> str:
+    """page printed once, then its cells; central dot separates the groups."""
     by_page: dict = {}
-    for ref in seg["refs"]:
+    for ref in refs:
         page, cell = ref.split("-")
         by_page.setdefault(page, []).append(cell)
     groups = []
     for page, cells in by_page.items():
         cs = ", ".join(sorted(set(cells), key=_cell_key))
-        groups.append(f"<span class='nw'><span class='sidx-pg'>{escape(page)}</span> {cs}</span>")
-    return f"{rng}<span class='sidx-cells'>{' · '.join(groups)}</span>"
+        groups.append(f"<span class='sidx-pg'>{escape(page)}</span> {cs}")
+    return f"<span class='sidx-cells'>{' · '.join(groups)}</span>"
+
+
+def _entry_html(g: dict) -> str:
+    name = f"<span class='sidx-name'>{escape(_trim_name(g['name']))}</span>"
+    inline, alt = [], []
+    for s in g["segs"]:
+        if s.get("range"):
+            alt.append(f"<div class='sidx-alt'><span class='sidx-rng'>"
+                       f"{escape(s['range'])}</span> {_page_groups(s['refs'])}</div>")
+        else:
+            inline.append(_page_groups(s["refs"]))
+    inline_html = (" " + " · ".join(inline)) if inline else ""
+    return f"<div class='sidx-entry'>{name}{inline_html}{''.join(alt)}</div>"
 
 
 def street_index_pdf():
     data = json.loads((CFG.output_dir / "street_index.json").read_text(encoding="utf-8"))
-    items = []
-    for g in _group_streets(data["entries"]):
-        segs = "<span class='sidx-rng'>, </span>".join(_seg_html(s) for s in g["segs"])
-        items.append(f"<span class='sidx-name'>{escape(_trim_name(g['name']))}</span> {segs}")
-    flow = "<span class='sidx-bul'> • </span>".join(items)
+    items = "".join(_entry_html(g) for g in _group_streets(data["entries"]))
     head = ("<div class='idx-head'><div>"
             "<div class='kicker'>Índice de calles</div>"
             "<div class='idx-sub'>calle · altura · página, celdas</div></div></div>"
             "<div class='idx-rule'></div>")
-    body = head + f"<div class='sidx-cols'>{flow}</div>"
+    body = head + f"<div class='sidx-cols'>{items}</div>"
     return _render(body, "street_index.pdf", PAGE_FLOW)
 
 
@@ -448,26 +450,28 @@ def _route_text(ln) -> str:
     return " · ".join(cells)
 
 
-def _bus_card(ln) -> str:
-    num = escape(str(ln["line"]))
-    roof = _livery(ln["line"])[0]
-    sign = f"""<div class="bcard__sign">
-      <svg viewBox="0 0 44 52" style="width:100%; height:auto; display:block;">
-        <path d="M3,5 Q3,2 6,2 L38,2 Q41,2 41,5 L41,30 Q41,32.5 39.3,34 L24,48.5 Q22,50.3 20,48.5 L4.7,34 Q3,32.5 3,30 Z" fill="{roof}" stroke="#1C1A15" stroke-width="1.6"></path>
-        <path d="M7,6.5 Q7,5.5 8,5.5 L36,5.5 Q37,5.5 37,6.5 L37,29.5 Q37,30.5 36.4,31 L22.5,44 Q22,44.5 21.5,44 L7.6,31 Q7,30.5 7,29.5 Z" fill="none" stroke="#FFFFFF" stroke-width="1" opacity=".9"></path>
+def _bus_row(ln) -> str:
+    s = str(ln["line"])
+    num = escape(str(int(s)) if s.isdigit() else s)
+    c = _livery(ln["line"])[0]
+    fs = 13 if len(num) <= 3 else 10
+    # "cartel de parada": rounded sign on a short post, number in the line color
+    sign = f"""<div class="lrow__sign">
+      <svg viewBox="0 0 56 40" style="width:100%; height:auto; display:block;">
+        <rect x="26.3" y="29" width="3.4" height="10" fill="{c}"></rect>
+        <rect x="2" y="2" width="52" height="29" rx="5" fill="#FCFAF3" stroke="{c}" stroke-width="2.4"></rect>
+        <rect x="5" y="5" width="46" height="23" rx="3" fill="none" stroke="{c}" stroke-width=".7" opacity=".45"></rect>
       </svg>
-      <div class="bcard__signnum">{num}</div></div>"""
+      <div class="lrow__signnum" style="color:{c}; font-size:{fs}px;">{num}</div></div>"""
     route = escape(_route_text(ln))
-    return f"""<div class="bcard"><div class="bcard__inner"></div>
-      <div class="bcard__top">{sign}
-        <div class="bcard__route">{route}</div></div></div>"""
+    return f'<div class="lrow">{sign}<div class="lrow__route">{route}</div></div>'
 
 
 def line_index_pdf():
     data = json.loads((CFG.output_dir / "line_to_cells.json").read_text(encoding="utf-8"))
     colect = sorted((l for l in data["lines"] if l["mode"] == "colectivo"),
                     key=lambda l: _line_key(l["line"]))
-    cards = "".join(_bus_card(l) for l in colect)
+    rows = "".join(_bus_row(l) for l in colect)
     head = f"""
     <div class='idx-head'>
       <div><div class='kicker'>Líneas de colectivo</div>
@@ -481,7 +485,7 @@ def line_index_pdf():
       <svg width="46" height="10" viewBox="0 0 46 10"><path d="M2,8 C 8,2 16,2 23,6 C 30,2 38,2 44,8" fill="none" stroke="#C99B33" stroke-width="1.3"></path><circle cx="23" cy="6" r="1.6" fill="#C99B33"></circle></svg>
       <div style="height:1px; flex:1; background:#D8C9A6;"></div>
     </div>"""
-    body = head + f"<div class='lidx-cols'>{cards}</div>"
+    body = head + f"<div class='lidx'>{rows}</div>"
     return _render(body, "line_index.pdf", PAGE_FLOW_LINES)
 
 
