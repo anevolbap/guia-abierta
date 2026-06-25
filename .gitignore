@@ -6,6 +6,8 @@ output/
 !output/.gitkeep
 cache/
 DECISIONS.md
+# local-only Claude project guide
+CLAUDE.md
 # copyrighted style references, kept locally only
 *.webp
 *.zip

@@ -501,11 +501,30 @@ def _with_brackets(streets: list, ranges: list) -> str:
     return " · ".join(parts)
 
 
+def _best_match(streets: list, ref_streets: list) -> tuple:
+    """Longest run `streets` shares with `ref_streets`, forward or reversed ->
+    (length, start_in_streets, start_in_ref, reversed)."""
+    f_len, f_sa, f_sb = _common_run(streets, ref_streets)
+    r_len, r_sa, r_sb = _common_run(streets, list(reversed(ref_streets)))
+    if r_len > f_len:
+        return (r_len, r_sa, len(ref_streets) - r_sb - r_len, True)
+    return (f_len, f_sa, f_sb, False)
+
+
+def _ref_label(ref: dict, cur_ramal: str, reverse: bool) -> str:
+    name = ref["dir"]
+    if ref["ramal"] and ref["ramal"] != cur_ramal:
+        name = f"{ref['ramal']} {name}"
+    inv = " inv." if reverse else ""
+    return f"<span class='lrow__ref'>[{escape(name)}{inv}]</span>"
+
+
 def _route_rows(ln) -> str:
     """Each ramal on its own (header + ida / vuelta), full routes (no truncation).
-    Ramales/directions share a common trunk; the longest run a route shares with
-    an earlier one is wrapped in brackets there and shown as "[…]" here, so the
-    shared corridor is written once."""
+    Ramales and the return trip share a corridor; the longest run a route shares
+    with an earlier one (matched forward OR reversed) is written once, bracketed
+    in that reference, and shown here as a labelled "[ida inv.]" placeholder
+    pointing back to it."""
     routes = ln.get("routes") or {}
     by_ramal: dict = {}
     for key, streets in routes.items():
@@ -524,33 +543,33 @@ def _route_rows(ln) -> str:
             if streets:
                 seq.append((ramal, d, streets))
 
-    # plan rendering: a route shares its longest run with an earlier "reference"
-    # route -> that run is a placeholder here and gets bracketed in the reference.
-    refs = []  # {"i": plan index, "streets": list, "brackets": [(start, len)]}
+    refs = []  # {"i", "ramal", "dir", "streets", "brackets": [(start, len)]}
     plans = []
     for ramal, d, streets in seq:
-        best = (0, 0, 0, None)  # len, start_here, start_there, ref
+        best = (0, 0, 0, False, None)  # len, start_here, start_ref, reversed, ref
         for ref in refs:
-            length, si, ri = _common_run(streets, ref["streets"])
+            length, sa, sr, rev = _best_match(streets, ref["streets"])
             if length > best[0]:
-                best = (length, si, ri, ref)
+                best = (length, sa, sr, rev, ref)
         if best[0] >= 4:
-            length, si, ri, ref = best
-            ref["brackets"].append((ri, length))
-            plans.append((ramal, d, "ph", streets[:si], streets[si + length:]))
+            length, sa, sr, rev, ref = best
+            ref["brackets"].append((sr, length))
+            plans.append((ramal, d, "ph", streets[:sa], streets[sa + length:],
+                          _ref_label(ref, ramal, rev)))
         else:
-            refs.append({"i": len(plans), "streets": streets, "brackets": []})
-            plans.append((ramal, d, "full", streets, None))
+            refs.append({"i": len(plans), "ramal": ramal, "dir": d,
+                         "streets": streets, "brackets": []})
+            plans.append((ramal, d, "full", streets, None, None))
     brackets_for = {ref["i"]: ref["brackets"] for ref in refs}
 
     rows, last_ramal = [], None
-    for idx, (ramal, d, mode, a, b) in enumerate(plans):
+    for idx, (ramal, d, mode, a, b, ph) in enumerate(plans):
         if multi and ramal and ramal != last_ramal:
             rows.append(f"<div class='lrow__ramal' style='color:{color}'>"
                         f"Ramal {escape(ramal)}</div>")
             last_ramal = ramal
         if mode == "ph":
-            segs = ([_streets_text(a)] if a else []) + ["<span class='lrow__ref'>[…]</span>"]
+            segs = ([_streets_text(a)] if a else []) + [ph]
             segs += [_streets_text(b)] if b else []
             body = " · ".join(segs)
         else:
