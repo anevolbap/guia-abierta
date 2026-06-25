@@ -13,17 +13,16 @@ from __future__ import annotations
 
 import colorsys
 import json
-import unicodedata
 import zlib
 from html import escape
 
 import matplotlib
 
 matplotlib.use("Agg")
-import fonts  # noqa: E402  registers bundled fonts for matplotlib
 import matplotlib.pyplot as plt
 from weasyprint import HTML
 
+import fonts  # noqa: E402  registers bundled fonts for matplotlib
 from config import CFG
 from grid import load_boundary, load_grid
 
@@ -80,40 +79,32 @@ body {{ margin:0; font-family:"Public Sans", sans-serif; color:var(--ink); -weas
 .idx-rule {{ width:100%; height:1px; background:var(--hairline); margin:12px 0; }}
 img.overview {{ width:100%; }}
 
-/* street index: 4 columns, grouped by name */
-.sidx-cols {{ column-count:4; column-gap:12px; column-rule:1px solid var(--column-rule); }}
-.sidx-grp {{ font-family:"Archivo Black"; font-size:13px; line-height:1;
-            color:var(--ink-deep); margin:7px 0 3px; break-inside:avoid; break-after:avoid; }}
-.sidx-entry {{ break-inside:avoid; margin-bottom:2px; line-height:1.16; }}
-.sidx-name {{ font-size:7.5px; font-weight:700; color:var(--ink); }}
-.sidx-seg {{ font-size:7px; }}
-.sidx-sep {{ color:#BBAF98; }}
-.sidx-rng {{ color:#A89F8C; white-space:nowrap; }}
+/* street index: continuous dense flow, 4 columns, bullet-separated */
+.sidx-cols {{ column-count:4; column-gap:11px; column-rule:1px solid var(--column-rule);
+             font-size:7px; line-height:1.3; text-align:justify; -weasy-hyphens:none; }}
+.sidx-name {{ font-weight:700; color:var(--ink); }}
+.sidx-rng {{ color:#A89F8C; }}
 .sidx-cells {{ color:var(--accent); font-weight:700; }}
+.sidx-bul {{ color:#C2B69C; font-weight:700; }}
 
-/* line index: 2 columns of line-art colectivo cards */
+/* line index: 2 columns of line-art colectivo cards (small bus + street route) */
 .lidx-cols {{ column-count:2; column-gap:9px; }}
 .bcard {{ position:relative; display:inline-block; width:100%;
-         background:#FBF8F0; border:1px solid #D8C9A6; padding:7px 9px 6px;
-         margin-bottom:9px; overflow:hidden; break-inside:avoid; }}
+         background:#FBF8F0; border:1px solid #D8C9A6; padding:6px 8px 5px;
+         margin-bottom:7px; overflow:hidden; break-inside:avoid; }}
 .bcard__inner {{ position:absolute; inset:3px; border:.8px solid #EAD9AC; pointer-events:none; }}
-.bcard__top {{ position:relative; display:flex; gap:8px; align-items:center; }}
-.bcard__sign {{ position:relative; flex:none; width:38px; }}
+.bcard__top {{ position:relative; display:flex; gap:7px; align-items:center; }}
+.bcard__sign {{ position:relative; flex:none; width:30px; }}
 .bcard__signnum {{ position:absolute; left:0; right:0; top:1px; height:54%;
                   display:flex; align-items:center; justify-content:center;
-                  font-family:"Archivo Black"; font-size:13px; line-height:1;
+                  font-family:"Archivo Black"; font-size:11px; line-height:1;
                   color:#FFFFFF; letter-spacing:-.5px; }}
-.bcard__bus {{ flex:1; min-width:0; position:relative; }}
+.bcard__bus {{ position:relative; flex:none; width:104px; }}
 .bcard__busnum {{ position:absolute; left:87.5%; top:27.3%; transform:translate(-50%,-50%);
-                 font-family:"Archivo Black"; font-size:5.5px; line-height:1;
+                 font-family:"Archivo Black"; font-size:5px; line-height:1;
                  color:#F1ECDF; letter-spacing:-.3px; white-space:nowrap; }}
-.bcard__route {{ position:relative; display:flex; align-items:center; gap:5px;
-                margin-top:5px; font-size:8px; font-weight:600; color:#5A554A;
-                letter-spacing:.1px; }}
-.bcard__a {{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis;
-            white-space:nowrap; text-align:right; }}
-.bcard__b {{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
-.bcard__arrow {{ flex:none; font-weight:800; }}
+.bcard__route {{ flex:1; min-width:0; font-size:6.8px; line-height:1.24;
+                font-weight:600; color:#5A554A; max-height:42px; overflow:hidden; }}
 """
 
 
@@ -268,8 +259,6 @@ def cover():
           <div style="width:18px; height:5px; background:#ED5B2A;"></div>
           <div style="width:10px; height:5px; background:#E0A82E;"></div>
         </div>
-        <div style="font-size:14.5px; line-height:1.45; color:#5A554A; max-width:300px;">
-          El mapa de bolsillo de la ciudad. Buscás la calle, leés la celda, encontrás la línea.</div>
       </div>
 
       {_fileteado()}
@@ -381,13 +370,6 @@ def overview():
 # --------------------------------------------------------------------------
 # street index: 4 columns, grouped by name into segments
 # --------------------------------------------------------------------------
-def _first_letter(name: str) -> str:
-    for ch in name:
-        if ch.isalpha():
-            return "Ñ" if ch.lower() == "ñ" else unicodedata.normalize("NFD", ch)[0].upper()
-    return "#"
-
-
 def _trim_name(name: str) -> str:
     name = name.replace(" (NO OFICIAL)", "").strip()
     return name if len(name) <= 26 else name[:25].rstrip() + "…"
@@ -407,27 +389,23 @@ def _group_streets(entries: list) -> list:
 def _seg_html(seg: dict) -> str:
     rng = (f"<span class='sidx-rng'>{escape(seg['range'])}{NBSP}</span>"
            if seg.get("range") else "")
-    cells = " ".join(f"<span class='nw'>{escape(r)}</span>" for r in seg["refs"])
-    return (f"<span class='sidx-seg'><span class='sidx-sep'> ·{NBSP}</span>"
-            f"{rng}<span class='sidx-cells'>{cells}</span></span>")
+    cells = " ".join(f"<span class='nw'>{escape(r).replace('-', '·')}</span>"
+                     for r in seg["refs"])
+    return f"{rng}<span class='sidx-cells'>{cells}</span>"
 
 
 def street_index_pdf():
     data = json.loads((CFG.output_dir / "street_index.json").read_text(encoding="utf-8"))
-    parts, cur = [], None
+    items = []
     for g in _group_streets(data["entries"]):
-        letter = _first_letter(g["name"])
-        if letter != cur:
-            cur = letter
-            parts.append(f"<div class='sidx-grp'>{escape(letter)}</div>")
-        segs = "".join(_seg_html(s) for s in g["segs"])
-        parts.append(f"<div class='sidx-entry'><span class='sidx-name'>"
-                     f"{escape(_trim_name(g['name']))}</span>{segs}</div>")
+        segs = "<span class='sidx-rng'>, </span>".join(_seg_html(s) for s in g["segs"])
+        items.append(f"<span class='sidx-name'>{escape(_trim_name(g['name']))}</span> {segs}")
+    flow = "<span class='sidx-bul'> • </span>".join(items)
     head = ("<div class='idx-head'><div>"
             "<div class='kicker'>Índice de calles</div>"
-            "<div class='idx-sub'>calle · rango · página-celda</div></div></div>"
+            "<div class='idx-sub'>calle · rango · página·celda</div></div></div>"
             "<div class='idx-rule'></div>")
-    body = head + f"<div class='sidx-cols'>{''.join(parts)}</div>"
+    body = head + f"<div class='sidx-cols'>{flow}</div>"
     return _render(body, "street_index.pdf", PAGE_FLOW)
 
 
@@ -451,21 +429,17 @@ def _livery(line) -> tuple:
     return roof, stripe
 
 
-def _cabeceras(ln) -> tuple:
+def _route_text(ln) -> str:
     streets = ln.get("streets") or []
-    if len(streets) >= 2:
-        return streets[0], streets[-1]
-    if len(streets) == 1:
-        return streets[0], streets[0]
+    if streets:
+        return " · ".join(s.title() for s in streets)
     cells = sorted({c for refs in ln["directions"].values() for c in refs})
-    return (cells[0] if cells else "", cells[-1] if cells else "")
+    return " · ".join(cells)
 
 
 def _bus_card(ln) -> str:
     num = escape(str(ln["line"]))
     roof, stripe = _livery(ln["line"])
-    a, b = _cabeceras(ln)
-    a, b = escape(a.title()), escape(b.title())
     sign = f"""<div class="bcard__sign">
       <svg viewBox="0 0 44 52" style="width:100%; height:auto; display:block;">
         <path d="M3,5 Q3,2 6,2 L38,2 Q41,2 41,5 L41,30 Q41,32.5 39.3,34 L24,48.5 Q22,50.3 20,48.5 L4.7,34 Q3,32.5 3,30 Z" fill="{roof}" stroke="#1C1A15" stroke-width="1.6"></path>
@@ -508,12 +482,10 @@ def _bus_card(ln) -> str:
           <circle cx="186" cy="63" r="5" fill="#CFC8B8"></circle></g>
       </svg>
       <div class="bcard__busnum">{num}</div></div>"""
+    route = escape(_route_text(ln))
     return f"""<div class="bcard"><div class="bcard__inner"></div>
-      <div class="bcard__top">{sign}{bus}</div>
-      <div class="bcard__route">
-        <span class="bcard__a">{a}</span>
-        <span class="bcard__arrow" style="color:{roof};">→</span>
-        <span class="bcard__b">{b}</span></div></div>"""
+      <div class="bcard__top">{sign}{bus}
+        <div class="bcard__route">{route}</div></div></div>"""
 
 
 def line_index_pdf():
@@ -524,7 +496,7 @@ def line_index_pdf():
     head = f"""
     <div class='idx-head'>
       <div><div class='kicker'>Líneas de colectivo</div>
-        <div class='idx-sub'>recorrido · cabecera a cabecera</div></div>
+        <div class='idx-sub'>recorrido por calles</div></div>
       <div style="text-align:right;">
         <div style="font-family:'Archivo Black'; font-size:30px; line-height:.8; color:#17150F;">{len(colect)}</div>
         <div style="font-size:9px; color:#8C877C; margin-top:2px;">líneas en la guía</div></div>
