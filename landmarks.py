@@ -90,6 +90,21 @@ def subte_stations() -> gpd.GeoDataFrame:
     return gdf
 
 
+def bici_stations() -> gpd.GeoDataFrame:
+    """Ecobici stations from the cached point GeoJSON. Kept separate from the
+    landmark index: they are drawn as bare markers on the map, not labelled."""
+    if not CFG.modes.get("bici", True):
+        return gpd.GeoDataFrame(columns=["name", "category", "geometry"], crs=CFG.crs_geo)
+    path = CFG.data_dir / "bici.geojson"
+    gdf = gpd.read_file(path).to_crs(CFG.crs_geo)
+    name = gdf["NOMBRE"].astype(str) if "NOMBRE" in gdf.columns else ""
+    return gpd.GeoDataFrame(
+        {"name": name, "category": "estacion_bici"},
+        geometry=gdf.geometry,
+        crs=CFG.crs_geo,
+    )
+
+
 def build_landmarks() -> dict:
     parts = []
     try:

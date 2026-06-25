@@ -42,12 +42,14 @@ grid:
 modes:
   colectivo: true
   subte: true
+  bici: true
 
 coverage_gate:
   # transit_index fails loudly if these are not met (wrong feed symptom).
   colectivo_min_lines: 120
   colectivo_max_lines: 180
   subte_min_lines: 6
+  bici_min_stations: 200
 
 landmarks:
   # Reduced to hospitals + major landmarks only (no small plazas/gardens).
@@ -99,11 +101,13 @@ sources:
   calles_dataset: "calles"
   barrios_dataset: "barrios"
   manzanas_dataset: "manzanas"
+  bici_dataset: "estaciones-bicicletas-publicas"
   # Optional hard overrides (leave empty to auto-resolve via CKAN).
   colectivos_url: ""
   subte_gtfs_url: ""
   calles_url: ""
   barrios_url: ""
   manzanas_url: ""
+  bici_url: ""
   # CABA bounding box (lon/lat) fallback if barrios download fails.
   caba_bbox_fallback: [-58.531, -34.705, -58.335, -34.526]
