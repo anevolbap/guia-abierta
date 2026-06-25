@@ -144,6 +144,12 @@ def fetch_manzanas() -> Path:
     return fetch_geojson("manzanas_dataset", "manzanas_url", "manzanas.geojson")
 
 
+def fetch_bici() -> Path:
+    """Ecobici public bike stations (new system). The dataset holds several
+    resources; pick_resource prefers the GeoJSON (point per station)."""
+    return fetch_geojson("bici_dataset", "bici_url", "bici.geojson")
+
+
 def fetch_all() -> dict[str, Path]:
     out: dict[str, Path] = {}
     out["barrios"] = fetch_barrios()
@@ -153,6 +159,8 @@ def fetch_all() -> dict[str, Path]:
         out["colectivos"] = fetch_colectivos()
     if CFG.modes.get("subte", True):
         out["subte"] = fetch_subte_gtfs()
+    if CFG.modes.get("bici", True):
+        out["bici"] = fetch_bici()
     # OSM landmarks are fetched lazily by landmarks.py (needs the clip polygon).
     return out
 

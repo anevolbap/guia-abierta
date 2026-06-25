@@ -35,6 +35,12 @@ GUIA = {
     "station_ring_lw": 1.1,
     "station_size":  3.0,
 
+    # bici (Ecobici stations: bare markers, no labels)
+    "bici_face":     "#D8362A",
+    "bici_edge":     "#FFFFFF",
+    "bici_edge_lw":  0.4,
+    "bici_size":     2.2,
+
     # grid / frame
     "fishnet":       (0.110, 0.102, 0.082, 0.20),
     "fishnet_lw":    0.6,

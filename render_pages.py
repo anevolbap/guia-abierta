@@ -65,7 +65,12 @@ def _load_layers():
 
             subte_geo[line] = unary_union(list(dirs.values()))
         stations = subte_stations().to_crs(CFG.crs_work)
-    return manz, streets, osm, subte_geo, stations
+    bici = None
+    if CFG.modes.get("bici", True):
+        from landmarks import bici_stations
+
+        bici = bici_stations().to_crs(CFG.crs_work)
+    return manz, streets, osm, subte_geo, stations, bici
 
 
 def _axes_for_page(fig, tile_bounds):
@@ -191,7 +196,7 @@ def _label_streets(ax, st, bounds):
 
 
 def render_page(page_no, tile, layers):
-    manz, streets, osm, subte_geo, stations = layers
+    manz, streets, osm, subte_geo, stations, bici = layers
     x0, y0, x1, y1 = tile.bounds
     bounds = (x0, y0, x1, y1)
     clip = gpd.GeoDataFrame(geometry=[tile], crs=CFG.crs_work)
@@ -245,6 +250,14 @@ def render_page(page_no, tile, layers):
                         xytext=(2, 2), textcoords="offset points",
                         fontsize=GUIA["fs_station"], color=GUIA["park_label"],
                         zorder=Z["labels"], path_effects=_HALO)
+
+    # bici (Ecobici) stations: small filled markers, no labels (too many to name)
+    if bici is not None:
+        bb = gpd.clip(bici, clip)
+        if not bb.empty:
+            ax.plot(bb.geometry.x, bb.geometry.y, "^", ms=GUIA["bici_size"],
+                    mfc=GUIA["bici_face"], mec=GUIA["bici_edge"],
+                    mew=GUIA["bici_edge_lw"], ls="none", zorder=Z["stations"])
 
     if not st.empty:
         _label_streets(ax, st, bounds)
